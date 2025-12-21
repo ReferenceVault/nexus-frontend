@@ -11,7 +11,7 @@ const Stats = () => {
               <i className="fa-solid fa-briefcase text-xl"></i>
             </div>
             <div className="text-2xl lg:text-3xl font-bold text-slate-900">2,500+</div>
-            <div className="text-sm text-slate-500 mt-1">Active Jobs</div>
+            <div className="text-sm text-slate-500 mt-1">AI‑curated tech jobs posted in Canada</div>
           </div>
 
           {/* Tech Companies */}
@@ -20,7 +20,7 @@ const Stats = () => {
               <i className="fa-solid fa-building text-xl"></i>
             </div>
             <div className="text-2xl lg:text-3xl font-bold text-slate-900">800+</div>
-            <div className="text-sm text-slate-500 mt-1">Tech Companies</div>
+            <div className="text-sm text-slate-500 mt-1">leading Canadian Employers</div>
           </div>
 
           {/* Video Resumes */}
@@ -29,7 +29,7 @@ const Stats = () => {
               <i className="fa-solid fa-video text-xl"></i>
             </div>
             <div className="text-2xl lg:text-3xl font-bold text-slate-900">15,000+</div>
-            <div className="text-sm text-slate-500 mt-1">Video Resumes</div>
+            <div className="text-sm text-slate-500 mt-1">video resumes analysed by AI</div>
           </div>
 
           {/* Placements */}
@@ -38,7 +38,7 @@ const Stats = () => {
               <i className="fa-solid fa-users text-xl"></i>
             </div>
             <div className="text-2xl lg:text-3xl font-bold text-slate-900">5,000+</div>
-            <div className="text-sm text-slate-500 mt-1">Placements</div>
+            <div className="text-sm text-slate-500 mt-1">successful tech placements across Canada</div>
           </div>
         </div>
       </div>

@@ -14,10 +14,10 @@ const FinalCTA = () => {
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-          Ready to Transform Your Career?
+          Ready to Transform Your Tech Career in Canada?
         </h2>
         <p className="text-base sm:text-lg text-slate-400 mb-8 max-w-2xl mx-auto">
-          Join thousands of professionals who've found their dream jobs through Nexus Recruitment. Your next opportunity is waiting.
+          CIP Nexus is the AI recruitment marketplace connecting you to Canada's top tech companies, roles and salaries.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto mb-12">
@@ -26,31 +26,31 @@ const FinalCTA = () => {
             onClick={() => navigate('/create-profile')}
           >
             <i className="fa-solid fa-rocket mr-2"></i>
-            Start Your Journey
+            Get Started – It's Free
           </button>
           <button 
             className="border border-white/30 text-white px-6 py-3 rounded-lg font-medium hover:bg-white/10 transition flex items-center justify-center"
             onClick={() => navigate('/demo')}
           >
             <i className="fa-solid fa-play mr-2"></i>
-            Watch Demo
+            Watch how to get Started?
           </button>
         </div>
 
         <div className="text-center">
-          <p className="text-slate-400 text-sm mb-4">Trusted by professionals worldwide</p>
+          <p className="text-slate-400 text-sm mb-4">Trusted by Tech Professionals</p>
           <div className="flex flex-wrap justify-center items-center gap-6 text-slate-300 text-sm">
             <div className="flex items-center">
               <i className="fa-solid fa-shield-check mr-2"></i>
-              <span>Secure & Private</span>
+              <span>Privacy-First Platform</span>
             </div>
             <div className="flex items-center">
-              <i className="fa-solid fa-globe mr-2"></i>
-              <span>Global Opportunities</span>
+              <i className="fa-solid fa-map-marker-alt mr-2"></i>
+              <span>Canada-Focused Roles</span>
             </div>
             <div className="flex items-center">
               <i className="fa-solid fa-star mr-2"></i>
-              <span>4.9/5 Rating</span>
+              <span>4.9★ Rated</span>
             </div>
           </div>
         </div>

@@ -8,48 +8,44 @@ const FeaturedTalent = () => {
     {
       id: 1,
       name: 'Sarah Chen',
-      title: 'Senior React Developer',
-      location: 'San Francisco, CA',
-      experience: '6+ yrs',
-      level: 'Senior',
-      skills: ['React', 'TypeScript', 'Next.js'],
-      additionalSkills: 3,
+      aiMatchScore: 95,
+      communicationRating: 4.8,
+      verifiedSkills: ['React', 'TypeScript', 'Next.js'],
+      location: 'Toronto, ON',
+      salaryExpectations: '$120k - $150k',
       videoThumbnail: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=300&fit=crop',
       profilePicture: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face'
     },
     {
       id: 2,
       name: 'Marcus Johnson',
-      title: 'Full Stack Engineer',
-      location: 'Austin, TX',
-      experience: '4+ yrs',
-      level: 'Mid',
-      skills: ['Node.js', 'React', 'PostgreSQL'],
-      additionalSkills: 3,
+      aiMatchScore: 92,
+      communicationRating: 4.6,
+      verifiedSkills: ['Node.js', 'React', 'PostgreSQL'],
+      location: 'Vancouver, BC',
+      salaryExpectations: '$100k - $130k',
       videoThumbnail: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
       profilePicture: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face'
     },
     {
       id: 3,
       name: 'Elena Rodriguez',
-      title: 'DevOps Engineer',
-      location: 'Denver, CO',
-      experience: '5+ yrs',
-      level: 'Senior',
-      skills: ['AWS', 'Kubernetes', 'Terraform'],
-      additionalSkills: 3,
+      aiMatchScore: 88,
+      communicationRating: 4.9,
+      verifiedSkills: ['AWS', 'Kubernetes', 'Terraform'],
+      location: 'Montreal, QC',
+      salaryExpectations: '$110k - $140k',
       videoThumbnail: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=300&fit=crop',
       profilePicture: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face'
     },
     {
       id: 4,
       name: 'Alex Kim',
-      title: 'Junior Frontend Developer',
-      location: 'Seattle, WA',
-      experience: '1+ yrs',
-      level: 'Junior',
-      skills: ['React', 'JavaScript', 'CSS'],
-      additionalSkills: 2,
+      aiMatchScore: 85,
+      communicationRating: 4.5,
+      verifiedSkills: ['React', 'JavaScript', 'CSS'],
+      location: 'Calgary, AB',
+      salaryExpectations: '$80k - $110k',
       videoThumbnail: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=300&fit=crop',
       profilePicture: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face'
     }
@@ -67,12 +63,12 @@ const FeaturedTalent = () => {
 
           {/* Title */}
           <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
-            Featured IT Talent
+            Featured AI‑Verified Tech Talent
           </h2>
 
           {/* Description */}
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Watch video resumes from skilled developers, engineers, and tech professionals ready to join your team.
+            Meet standout software engineers, data scientists, software engineers, architects, product managers and AI specialists whose skills and soft skills have been validated by our AI assessments.
           </p>
         </div>
 
@@ -84,17 +80,17 @@ const FeaturedTalent = () => {
               className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-shadow overflow-hidden cursor-pointer"
               onClick={() => navigate(`/candidate/${candidate.id}`)}
             >
-              {/* Video Thumbnail */}
+              {/* Video Thumbnail - Personal Video */}
               <div className="relative aspect-video bg-slate-200 overflow-hidden">
                 <img
                   src={candidate.videoThumbnail}
                   alt={candidate.name}
                   className="w-full h-full object-cover"
                 />
-                {/* Experience Badge */}
+                {/* AI Match Score Badge */}
                 <div className="absolute top-3 left-3">
-                  <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md text-xs font-medium">
-                    {candidate.level}
+                  <span className="bg-indigo-600 text-white px-2 py-1 rounded-md text-xs font-semibold">
+                    AI Match: {candidate.aiMatchScore}%
                   </span>
                 </div>
                 {/* Play Button */}
@@ -115,35 +111,54 @@ const FeaturedTalent = () => {
                   />
                   <div className="flex-1">
                     <h3 className="font-bold text-slate-900 text-lg">{candidate.name}</h3>
-                    <p className="text-purple-600 text-sm font-medium">{candidate.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-indigo-600 text-sm font-semibold">
+                        {candidate.aiMatchScore}% Match
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Location & Experience */}
-                <div className="flex items-center gap-4 text-sm text-slate-600 mb-4">
-                  <span className="flex items-center">
-                    <i className="fa-solid fa-map-marker-alt mr-1.5"></i>
-                    {candidate.location}
-                  </span>
-                  <span className="flex items-center">
-                    <i className="fa-solid fa-briefcase mr-1.5"></i>
-                    {candidate.experience}
-                  </span>
+                {/* Communication Rating */}
+                <div className="flex items-center gap-2 mb-3">
+                  <i className="fa-solid fa-comments text-purple-600"></i>
+                  <span className="text-sm text-slate-700 font-medium">Communication:</span>
+                  <div className="flex items-center">
+                    <span className="text-sm font-semibold text-slate-900">{candidate.communicationRating}</span>
+                    <i className="fa-solid fa-star text-yellow-400 text-xs ml-1"></i>
+                  </div>
                 </div>
 
-                {/* Skills */}
-                <div className="flex flex-wrap gap-2">
-                  {candidate.skills.map((skill, index) => (
-                    <span
-                      key={index}
-                      className="bg-slate-100 text-slate-700 px-3 py-1 rounded-md text-xs font-medium"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                  <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-md text-xs font-medium">
-                    +{candidate.additionalSkills}
-                  </span>
+                {/* Location */}
+                <div className="flex items-center gap-2 mb-3 text-sm text-slate-600">
+                  <i className="fa-solid fa-map-marker-alt"></i>
+                  <span>{candidate.location}</span>
+                </div>
+
+                {/* Salary Expectations */}
+                <div className="flex items-center gap-2 mb-4 text-sm">
+                  <i className="fa-solid fa-dollar-sign text-green-600"></i>
+                  <span className="text-slate-700 font-medium">Salary:</span>
+                  <span className="text-slate-900 font-semibold">{candidate.salaryExpectations}</span>
+                </div>
+
+                {/* Verified Skills */}
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                    <i className="fa-solid fa-check-circle text-green-600"></i>
+                    Verified Skills:
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {candidate.verifiedSkills.map((skill, index) => (
+                      <span
+                        key={index}
+                        className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-md text-xs font-medium border border-indigo-200"
+                      >
+                        <i className="fa-solid fa-check text-xs mr-1"></i>
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

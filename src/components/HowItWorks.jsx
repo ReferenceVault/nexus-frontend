@@ -5,7 +5,7 @@ const HowItWorks = () => {
     <section id="how-it-works" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-neutral-900 mb-6">How It Works</h2>
+          <h2 className="text-4xl font-bold text-neutral-900 mb-6">How CIP Nexus Works</h2>
           <p className="text-xl text-neutral-900/70 max-w-3xl mx-auto">Our streamlined process connects exceptional talent with outstanding opportunities in just four simple steps.</p>
         </div>
 
@@ -16,10 +16,9 @@ const HowItWorks = () => {
               <div className="w-24 h-24 bg-primary rounded-full flex items-center justify-center mx-auto shadow-lg group-hover:shadow-xl transition-all">
                 <i className="fa-solid fa-user-plus text-white text-2xl"></i>
               </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 bg-warning rounded-full flex items-center justify-center text-white font-bold text-sm">1</div>
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-4">Create Profile</h3>
-            <p className="text-neutral-900/70 leading-relaxed">Build a comprehensive profile showcasing your skills, experience, and career aspirations.</p>
+            <h3 className="text-xl font-bold text-neutral-900 mb-4">Create Your AI‑Enhanced Profile</h3>
+            <p className="text-neutral-900/70 leading-relaxed">Build your profile now by simply uploading your resume and record a video. Our AI analyses your skills and communication and lets you showcase your skills and experiences</p>
           </div>
 
           {/* Step 2 */}
@@ -28,10 +27,9 @@ const HowItWorks = () => {
               <div className="w-24 h-24 bg-secondary rounded-full flex items-center justify-center mx-auto shadow-lg group-hover:shadow-xl transition-all">
                 <i className="fa-solid fa-tasks text-white text-2xl"></i>
               </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 bg-warning rounded-full flex items-center justify-center text-white font-bold text-sm">2</div>
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-4">Take Assessment</h3>
-            <p className="text-neutral-900/70 leading-relaxed">Complete fair, skills-based assessments that highlight your technical and soft skills.</p>
+            <h3 className="text-xl font-bold text-neutral-900 mb-4">Ace AI‑Powered Assessments</h3>
+            <p className="text-neutral-900/70 leading-relaxed">Complete technical, soft skill and communication evaluations scored by our AI, and receive personalised improvement tips.</p>
           </div>
 
           {/* Step 3 */}
@@ -40,10 +38,9 @@ const HowItWorks = () => {
               <div className="w-24 h-24 bg-purple-600 rounded-full flex items-center justify-center mx-auto shadow-lg group-hover:shadow-xl transition-all">
                 <i className="fa-solid fa-handshake text-white text-2xl"></i>
               </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 bg-warning rounded-full flex items-center justify-center text-white font-bold text-sm">3</div>
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-4">Get Matched</h3>
-            <p className="text-neutral-900/70 leading-relaxed">Our AI matches you with roles that align with your skills, preferences, and career goals.</p>
+            <h3 className="text-xl font-bold text-neutral-900 mb-4">Get Discovered</h3>
+            <p className="text-neutral-900/70 leading-relaxed">Our AI helps you discover roles based on your skills, preferences and location, delivering personalised career goals.</p>
           </div>
 
           {/* Step 4 */}
@@ -52,10 +49,9 @@ const HowItWorks = () => {
               <div className="w-24 h-24 bg-orange-500 rounded-full flex items-center justify-center mx-auto shadow-lg group-hover:shadow-xl transition-all">
                 <i className="fa-solid fa-rocket text-white text-2xl"></i>
               </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 bg-warning rounded-full flex items-center justify-center text-white font-bold text-sm">4</div>
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-4">Start Journey</h3>
-            <p className="text-neutral-900/70 leading-relaxed">Begin your new role with comprehensive onboarding and relocation support if needed.</p>
+            <h3 className="text-xl font-bold text-neutral-900 mb-4">Start Your Professional Journey</h3>
+            <p className="text-neutral-900/70 leading-relaxed">Begin your journey with support from experienced mentors and trusted CIP advisors.</p>
           </div>
         </div>
 
