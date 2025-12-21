@@ -5,7 +5,7 @@ const TrustSecurity = () => {
     <section id="trust-security" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-neutral-900 mb-6">Trusted by Industry Leaders</h2>
+          <h2 className="text-4xl font-bold text-neutral-900 mb-6">Trusted by Leading Canadian Employers</h2>
           <p className="text-xl text-neutral-900/70 max-w-3xl mx-auto">Join thousands of professionals and companies who trust Nexus for their career and hiring needs.</p>
         </div>
 
@@ -37,22 +37,22 @@ const TrustSecurity = () => {
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="fa-solid fa-shield-check text-success text-2xl"></i>
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-3">Data Protection</h3>
-            <p className="text-neutral-900/70">GDPR compliant with enterprise-grade security measures to protect your personal information.</p>
+            <h3 className="text-xl font-bold text-neutral-900 mb-3">Data Protection & Compliance</h3>
+            <p className="text-neutral-900/70">Your data is encrypted and stored in Canada. Our processes meet GDPR and PIPEDA standards and undergo independent audits.</p>
           </div>
           <div className="text-center">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="fa-solid fa-user-shield text-primary text-2xl"></i>
             </div>
             <h3 className="text-xl font-bold text-neutral-900 mb-3">Privacy First</h3>
-            <p className="text-neutral-900/70">Your profile visibility is completely under your control. Share only what you want, when you want.</p>
+            <p className="text-neutral-900/70">You choose who can view your video resume and skills profiles, and can control your profile access at any time.</p>
           </div>
           <div className="text-center">
             <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="fa-solid fa-certificate text-purple-600 text-2xl"></i>
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-3">Verified Companies</h3>
-            <p className="text-neutral-900/70">Every employer goes through rigorous verification to ensure legitimacy and fair practices.</p>
+            <h3 className="text-xl font-bold text-neutral-900 mb-3">Licensed & Verified Employers</h3>
+            <p className="text-neutral-900/70">All employers hold the necessary provincial recruiter licences and have been vetted for fair hiring practices.</p>
           </div>
         </div>
       </div>

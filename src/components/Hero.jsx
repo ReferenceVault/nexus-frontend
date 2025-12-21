@@ -38,16 +38,16 @@ const Hero = () => {
 
           {/* Main Heading */}
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
-            Where Tech Talent
+            Where Top Tech Talent
             <br />
             <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Meets Opportunity
+              Gets Discovered
             </span>
           </h1>
 
           {/* Tagline */}
           <p className="mt-4 text-base sm:text-lg text-slate-400 max-w-2xl mx-auto">
-            Connect with top tech companies through video resumes. Show who you are, not just what's on paper.
+            Get discovered by top Canadian tech employers with AI-rated video resumes.
           </p>
         </div>
 
@@ -80,24 +80,18 @@ const Hero = () => {
                 <div className="w-10 h-10 rounded-lg bg-indigo-500/30 flex items-center justify-center">
                   <i className="fa-solid fa-building text-indigo-300 text-lg"></i>
                 </div>
-                <h3 className="text-lg font-bold text-white">Hire Top IT Talent</h3>
+                <h3 className="text-lg font-bold text-white">Hire Exceptional Tech Talent in Canada</h3>
               </div>
               <p className="text-slate-300 text-sm mb-5">
-                Find exceptional IT talent through video resumes. See candidates' skills and personality before the interview.
+                Source exceptional, pre‑vetted tech talent with AI‑verified skills and Canadian work eligibility.
               </p>
               <div className="flex flex-wrap gap-3">
                 <button 
                   className="bg-white text-indigo-600 hover:bg-indigo-50 shadow-lg px-4 py-2.5 rounded-lg font-medium transition flex items-center"
                   onClick={() => navigate('/create-profile')}
                 >
-                  Post a Job
+                  Post a Job for Free • Discover AI‑Verified Talent
                   <i className="fa-solid fa-arrow-right w-4 h-4 ml-2"></i>
-                </button>
-                <button 
-                  className="border border-white/30 text-white hover:bg-white/10 px-4 py-2.5 rounded-lg font-medium transition"
-                  onClick={() => navigate('/job-matches')}
-                >
-                  Browse Talent
                 </button>
               </div>
             </div>
@@ -130,10 +124,10 @@ const Hero = () => {
                 <div className="w-10 h-10 rounded-lg bg-purple-500/30 flex items-center justify-center">
                   <i className="fa-solid fa-video text-purple-300 text-lg"></i>
                 </div>
-                <h3 className="text-lg font-bold text-white">Get Your Dream Job</h3>
+                <h3 className="text-lg font-bold text-white">Get Discovered by Canada's Top Tech Companies</h3>
               </div>
               <p className="text-slate-300 text-sm mb-5">
-                Stand out with a video resume. Let employers see your experience and personality come to life.
+                Stand out with an AI‑rated video resume and get matched to exceptional tech roles across Canada.
               </p>
               <div className="flex flex-wrap gap-3">
                 <button 
@@ -141,13 +135,7 @@ const Hero = () => {
                 onClick={() => navigate('/user-dashboard')}
                 >
                   <i className="fa-solid fa-play w-4 h-4 mr-2"></i>
-                  Upload Resume
-                </button>
-                <button 
-                  className="border border-white/30 text-white hover:bg-white/10 px-4 py-2.5 rounded-lg font-medium transition"
-                  onClick={() => navigate('/job-matches')}
-                >
-                  Browse Jobs
+                  Upload Your Video Resume • Find Top Tech Roles
                 </button>
               </div>
             </div>

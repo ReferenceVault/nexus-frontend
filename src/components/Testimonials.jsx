@@ -5,7 +5,7 @@ const Testimonials = () => {
     <section id="testimonials" className="py-20 bg-gradient-to-br from-blue-50 via-purple-50 to-green-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-neutral-900 mb-6">Success Stories</h2>
+          <h2 className="text-4xl font-bold text-neutral-900 mb-6">Success Stories & Impact Metrics</h2>
           <p className="text-xl text-neutral-900/70 max-w-3xl mx-auto">Hear from professionals who've transformed their careers through Nexus Recruitment.</p>
         </div>
 
@@ -26,10 +26,10 @@ const Testimonials = () => {
                 </div>
               </div>
             </div>
-            <p className="text-neutral-900/80 leading-relaxed mb-4">"Nexus helped me transition from a local startup to a global tech company. The assessment process was fair and the relocation support was incredible. I'm now working my dream job in Berlin!"</p>
+            <p className="text-neutral-900/80 leading-relaxed mb-4">"Thanks to CIP Nexus' AI assessments, I knew exactly what to improve. The transparent matching and salary insights landed me a dream job in Toronto."</p>
             <div className="text-sm text-neutral-900/60">
               <i className="fa-solid fa-map-marker-alt mr-1"></i>
-              Singapore → Berlin, Germany
+              Toronto, Canada
             </div>
           </div>
 
@@ -49,7 +49,7 @@ const Testimonials = () => {
                 </div>
               </div>
             </div>
-            <p className="text-neutral-900/80 leading-relaxed mb-4">"The transparency in salary ranges and company culture was refreshing. No more guessing games. I found a role that perfectly matched my skills and values, with a 40% salary increase."</p>
+            <p className="text-neutral-900/80 leading-relaxed mb-4">"CIP Nexus matched me to an amazing data scientist role. The fair assessment and market-based salary guidance were game-changers."</p>
             <div className="text-sm text-neutral-900/60">
               <i className="fa-solid fa-map-marker-alt mr-1"></i>
               Mexico City → Toronto, Canada
@@ -72,10 +72,10 @@ const Testimonials = () => {
                 </div>
               </div>
             </div>
-            <p className="text-neutral-900/80 leading-relaxed mb-4">"As someone from a non-traditional background, the skills-based assessment gave me a fair chance to showcase my abilities. The bias-free process opened doors I never thought possible."</p>
+            <p className="text-neutral-900/80 leading-relaxed mb-4">"I was skeptical about recruitment agencies. CIP Nexus proved me wrong with fair, AI-driven hiring that valued my strengths and helped me relocate to Vancouver."</p>
             <div className="text-sm text-neutral-900/60">
               <i className="fa-solid fa-map-marker-alt mr-1"></i>
-              Mumbai → Amsterdam, Netherlands
+              Vancouver, Canada
             </div>
           </div>
         </div>
@@ -83,20 +83,20 @@ const Testimonials = () => {
         {/* Testimonial Stats */}
         <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
           <div>
-            <div className="text-3xl font-bold text-primary mb-2">95%</div>
-            <div className="text-neutral-900/60">Success Rate</div>
+            <div className="text-3xl font-bold text-primary mb-2">5,000+</div>
+            <div className="text-neutral-900/60">successful tech placements across Canada.</div>
           </div>
           <div>
             <div className="text-3xl font-bold text-secondary mb-2">4.9/5</div>
-            <div className="text-neutral-900/60">Average Rating</div>
+            <div className="text-neutral-900/60">satisfaction from candidates and employers.</div>
           </div>
           <div>
             <div className="text-3xl font-bold text-purple-600 mb-2">30%</div>
-            <div className="text-neutral-900/60">Average Salary Increase</div>
+            <div className="text-neutral-900/60">average salary increase for placed candidates.</div>
           </div>
           <div>
-            <div className="text-3xl font-bold text-orange-500 mb-2">12K+</div>
-            <div className="text-neutral-900/60">Successful Placements</div>
+            <div className="text-3xl font-bold text-orange-500 mb-2">95%</div>
+            <div className="text-neutral-900/60">placement success within 120 days.</div>
           </div>
         </div>
       </div>
