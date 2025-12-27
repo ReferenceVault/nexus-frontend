@@ -81,8 +81,9 @@ const Signup = () => {
   }
 
   const handleGoogleSignup = () => {
-    // TODO: Implement Google OAuth
-    alert('Google signup coming soon!')
+    // Redirect to backend Google OAuth endpoint
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    window.location.href = `${API_BASE_URL}/auth/google`
   }
 
   return (

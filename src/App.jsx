@@ -12,6 +12,7 @@ import ResetPassword from './pages/ResetPassword'
 import UserDashboard from './pages/UserDashboard'
 import Onboarding from './pages/Onboarding'
 import Assessment from './pages/Assessment'
+import GoogleCallback from './pages/GoogleCallback'
 
 // Protected Route Component
 const ProtectedDashboard = () => {
@@ -28,6 +29,7 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/auth/google/callback" element={<GoogleCallback />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/user-dashboard" element={<ProtectedDashboard />} />
         <Route path="/assessments" element={<Assessment />} />

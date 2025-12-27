@@ -42,8 +42,9 @@ const Signin = () => {
   }
 
   const handleGoogleSignin = () => {
-    // TODO: Implement Google OAuth
-    alert('Google signin coming soon!')
+    // Redirect to backend Google OAuth endpoint
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    window.location.href = `${API_BASE_URL}/auth/google`
   }
   return (
     <div className="bg-white text-neutral-900">
