@@ -1,5 +1,25 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { store } from '../store'
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+// Helper to get auth token from Redux store
+const getAuthToken = () => {
+  const state = store.getState()
+  return state.auth.accessToken
+}
+
+// Helper to handle API errors
+const handleApiError = async (response) => {
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({
+      message: 'An error occurred',
+    }))
+    throw new Error(error.message || 'Request failed')
+  }
+  return response.json()
+}
+
+// API client with automatic token injection
 export const api = {
   async signup(email, firstName, lastName, password) {
     const response = await fetch(`${API_BASE_URL}/auth/signup`, {
@@ -7,11 +27,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, firstName, lastName, password }),
     })
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Signup failed')
-    }
-    return response.json()
+    return handleApiError(response)
   },
 
   async login(email, password) {
@@ -20,41 +36,47 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     })
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Login failed')
-    }
-    return response.json()
+    return handleApiError(response)
   },
 
-  async getCurrentUser(accessToken) {
+  async getCurrentUser() {
+    const token = getAuthToken()
+    if (!token) {
+      throw new Error('No authentication token')
+    }
     const response = await fetch(`${API_BASE_URL}/users/me`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${token}` },
     })
-    if (!response.ok) {
-      throw new Error('Failed to fetch user')
-    }
-    return response.json()
+    return handleApiError(response)
   },
 
-  async refreshToken(refreshToken) {
+  async refreshToken() {
+    const state = store.getState()
+    const refreshToken = state.auth.refreshToken
+    if (!refreshToken) {
+      throw new Error('No refresh token')
+    }
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
     })
-    if (!response.ok) {
-      throw new Error('Token refresh failed')
-    }
-    return response.json()
+    return handleApiError(response)
   },
 
-  async logout(accessToken) {
-    const response = await fetch(`${API_BASE_URL}/auth/logout`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-    return response.json()
+  async logout() {
+    const token = getAuthToken()
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      } catch (error) {
+        console.error('Logout API error:', error)
+      }
+    }
+    return { success: true }
   },
 
   async forgotPassword(email) {
@@ -63,11 +85,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     })
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Failed to send reset email')
-    }
-    return response.json()
+    return handleApiError(response)
   },
 
   async resetPassword(token, newPassword) {
@@ -76,64 +94,63 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, newPassword }),
     })
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Failed to reset password')
+    return handleApiError(response)
+  },
+
+  // Generic authenticated request helper
+  async authenticatedRequest(url, options = {}) {
+    const token = getAuthToken()
+    if (!token) {
+      throw new Error('No authentication token')
     }
-    return response.json()
+
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...options.headers,
+      },
+    })
+    return handleApiError(response)
   },
 }
 
+// Legacy authStorage for backward compatibility (deprecated - use Redux)
 export const authStorage = {
-  setTokens(accessToken, refreshToken) {
-    localStorage.setItem('accessToken', accessToken)
-    localStorage.setItem('refreshToken', refreshToken)
+  getAccessToken: () => getAuthToken(),
+  getRefreshToken: () => {
+    const state = store.getState()
+    return state.auth.refreshToken
   },
-
-  getAccessToken() {
-    return localStorage.getItem('accessToken')
+  getUserData: () => {
+    const state = store.getState()
+    return state.auth.user
   },
-
-  getRefreshToken() {
-    return localStorage.getItem('refreshToken')
+  getSignupData: () => {
+    const state = store.getState()
+    return state.auth.signupData
   },
-
-  clearTokens() {
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
+  // These methods are kept for migration but should use Redux actions
+  setTokens: (accessToken, refreshToken) => {
+    store.dispatch({ type: 'auth/setTokens', payload: { accessToken, refreshToken } })
   },
-
-  setUserData(userData) {
-    localStorage.setItem('userData', JSON.stringify(userData))
+  setUserData: (userData) => {
+    store.dispatch({ type: 'auth/setUser', payload: userData })
   },
-
-  getUserData() {
-    const data = localStorage.getItem('userData')
-    return data ? JSON.parse(data) : null
+  clearTokens: () => {
+    store.dispatch({ type: 'auth/logout' })
   },
-
-  clearUserData() {
-    localStorage.removeItem('userData')
+  clearUserData: () => {
+    store.dispatch({ type: 'auth/logout' })
   },
-
-  setSignupData(firstName, lastName, email) {
-    localStorage.setItem('signupFirstName', firstName)
-    localStorage.setItem('signupLastName', lastName)
-    localStorage.setItem('signupEmail', email)
+  setSignupData: (firstName, lastName, email) => {
+    store.dispatch({
+      type: 'auth/setSignupData',
+      payload: { firstName, lastName, email },
+    })
   },
-
-  getSignupData() {
-    return {
-      firstName: localStorage.getItem('signupFirstName'),
-      lastName: localStorage.getItem('signupLastName'),
-      email: localStorage.getItem('signupEmail'),
-    }
-  },
-
-  clearSignupData() {
-    localStorage.removeItem('signupFirstName')
-    localStorage.removeItem('signupLastName')
-    localStorage.removeItem('signupEmail')
+  clearSignupData: () => {
+    store.dispatch({ type: 'auth/clearSignupData' })
   },
 }
-

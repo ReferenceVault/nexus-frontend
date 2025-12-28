@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import { setOnboardingStatus, OnboardingStatus, completeOnboarding } from '../utils/onboarding'
-import { authStorage } from '../utils/api'
+import { useAuth } from '../hooks/useAuth'
 
 const Onboarding = () => {
   const navigate = useNavigate()
@@ -24,27 +24,26 @@ const Onboarding = () => {
     videoFile: null
   })
 
+  const { signupData, user } = useAuth()
+
   useEffect(() => {
     // Prefill data from signup or user data
-    const signupData = authStorage.getSignupData()
-    const userData = authStorage.getUserData()
-    
-    if (signupData.firstName || signupData.lastName || signupData.email) {
+    if (signupData?.firstName || signupData?.lastName || signupData?.email) {
       setFormData(prev => ({
         ...prev,
         firstName: signupData.firstName || prev.firstName,
         lastName: signupData.lastName || prev.lastName,
         email: signupData.email || prev.email,
       }))
-    } else if (userData) {
+    } else if (user) {
       setFormData(prev => ({
         ...prev,
-        firstName: userData.firstName || prev.firstName,
-        lastName: userData.lastName || prev.lastName,
-        email: userData.email || prev.email,
+        firstName: user.firstName || prev.firstName,
+        lastName: user.lastName || prev.lastName,
+        email: user.email || prev.email,
       }))
     }
-  }, [])
+  }, [signupData, user])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target

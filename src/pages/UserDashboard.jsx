@@ -1,17 +1,18 @@
 import React, { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
-import { api, authStorage } from '../utils/api'
+import { api } from '../utils/api'
+import { useAuth } from '../hooks/useAuth'
 
 const UserDashboard = () => {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const profileFormRef = useRef(null)
   const [showProfileForm, setShowProfileForm] = useState(false)
   
-  const userData = authStorage.getUserData()
-  const userName = userData?.firstName && userData?.lastName 
-    ? `${userData.firstName} ${userData.lastName}` 
-    : userData?.email?.split('@')[0] || 'User'
+  const userName = user?.firstName && user?.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : user?.email?.split('@')[0] || 'User'
   const userAvatar = 'https://i.pravatar.cc/64?img=4'
 
   const handleScrollToProfile = () => {
@@ -29,18 +30,13 @@ const UserDashboard = () => {
 
   const handleLogout = async () => {
     try {
-      const accessToken = authStorage.getAccessToken()
-      if (accessToken) {
-        await api.logout(accessToken)
-      }
+      await api.logout()
     } catch (error) {
       console.error('Logout error:', error)
       // Continue with logout even if API call fails
     } finally {
-      // Clear all auth data
-      authStorage.clearTokens()
-      authStorage.clearUserData()
-      authStorage.clearSignupData()
+      // Clear all auth data using Redux
+      logout()
       
       // Redirect to home page
       navigate('/')

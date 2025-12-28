@@ -13,15 +13,16 @@ import UserDashboard from './pages/UserDashboard'
 import Onboarding from './pages/Onboarding'
 import Assessment from './pages/Assessment'
 import GoogleCallback from './pages/GoogleCallback'
-
-// Protected Route Component
-const ProtectedDashboard = () => {
-  return <UserDashboard />
-}
+import ProtectedRoute from './components/common/ProtectedRoute'
 
 function App() {
   return (
-    <Router>
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/auth" element={<Navigate to="/signin" replace />} />
@@ -30,13 +31,13 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/auth/google/callback" element={<GoogleCallback />} />
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/user-dashboard" element={<ProtectedDashboard />} />
-        <Route path="/assessments" element={<Assessment />} />
-        <Route path="/create-profile" element={<CreateProfile />} />
-        <Route path="/import-profile" element={<ImportProfile />} />
-        <Route path="/job-matches" element={<JobMatches />} />
-        <Route path="/job-details/:jobId" element={<JobDetails />} />
+        <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+        <Route path="/user-dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+        <Route path="/assessments" element={<ProtectedRoute><Assessment /></ProtectedRoute>} />
+        <Route path="/create-profile" element={<ProtectedRoute><CreateProfile /></ProtectedRoute>} />
+        <Route path="/import-profile" element={<ProtectedRoute><ImportProfile /></ProtectedRoute>} />
+        <Route path="/job-matches" element={<ProtectedRoute><JobMatches /></ProtectedRoute>} />
+        <Route path="/job-details/:jobId" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
       </Routes>
     </Router>
   )

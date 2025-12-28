@@ -2,10 +2,14 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { api, authStorage } from '../utils/api'
+import { api } from '../utils/api'
+import { useAuth } from '../hooks/useAuth'
+import FormInput from '../components/common/FormInput'
+import ErrorMessage from '../components/common/ErrorMessage'
 
 const Signup = () => {
   const navigate = useNavigate()
+  const { login, setLoading, isLoading, error, setError, clearError, setSignupData } = useAuth()
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -14,7 +18,6 @@ const Signup = () => {
     confirmPassword: '',
   })
   const [errors, setErrors] = useState({})
-  const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
@@ -24,6 +27,7 @@ const Signup = () => {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
+    clearError()
   }
 
   const validateForm = () => {
@@ -56,6 +60,7 @@ const Signup = () => {
     if (!validateForm()) return
 
     setLoading(true)
+    clearError()
     try {
       const response = await api.signup(
         formData.email,
@@ -64,17 +69,22 @@ const Signup = () => {
         formData.password
       )
       
-      // Store tokens
-      authStorage.setTokens(response.tokens.accessToken, response.tokens.refreshToken)
-      authStorage.setUserData(response.user)
+      // Login using Redux
+      login(response.user, response.tokens)
       
       // Store signup data for onboarding prefilling
-      authStorage.setSignupData(formData.firstName, formData.lastName, formData.email)
+      setSignupData({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+      })
       
       // Redirect to onboarding
       navigate('/onboarding')
     } catch (error) {
-      setErrors({ submit: error.message || 'Signup failed. Please try again.' })
+      const errorMessage = error.message || 'Signup failed. Please try again.'
+      setError(errorMessage)
+      setErrors({ submit: errorMessage })
     } finally {
       setLoading(false)
     }
@@ -82,7 +92,7 @@ const Signup = () => {
 
   const handleGoogleSignup = () => {
     // Redirect to backend Google OAuth endpoint
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     window.location.href = `${API_BASE_URL}/auth/google`
   }
 
@@ -119,11 +129,7 @@ const Signup = () => {
                 <div className="text-sm font-semibold text-slate-400">Create your profile and get started</div>
               </div>
 
-              {errors.submit && (
-                <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-3 rounded-lg">
-                  {errors.submit}
-                </div>
-              )}
+              <ErrorMessage error={error || errors.submit} onDismiss={clearError} />
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -247,10 +253,10 @@ const Signup = () => {
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={isLoading}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg py-2.5 text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? (
+                  {isLoading ? (
                     <>
                       <i className="fa-solid fa-spinner fa-spin"></i>
                       <span>Creating Account...</span>

@@ -2,16 +2,19 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { api, authStorage } from '../utils/api'
+import { api } from '../utils/api'
+import { useAuth } from '../hooks/useAuth'
+import FormInput from '../components/common/FormInput'
+import ErrorMessage from '../components/common/ErrorMessage'
 
 const Signin = () => {
   const navigate = useNavigate()
+  const { login, setLoading, isLoading, error, setError, clearError } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   })
   const [errors, setErrors] = useState({})
-  const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   const handleInputChange = (e) => {
@@ -20,22 +23,25 @@ const Signin = () => {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
+    clearError()
   }
 
   const handleSignIn = async (e) => {
     e?.preventDefault()
     setLoading(true)
+    clearError()
     try {
       const response = await api.login(formData.email, formData.password)
       
-      // Store tokens
-      authStorage.setTokens(response.tokens.accessToken, response.tokens.refreshToken)
-      authStorage.setUserData(response.user)
+      // Login using Redux
+      login(response.user, response.tokens)
       
       // Always redirect to dashboard after login
       navigate('/user-dashboard')
     } catch (error) {
-      setErrors({ submit: error.message || 'Invalid email or password' })
+      const errorMessage = error.message || 'Invalid email or password'
+      setError(errorMessage)
+      setErrors({ submit: errorMessage })
     } finally {
       setLoading(false)
     }
@@ -43,7 +49,7 @@ const Signin = () => {
 
   const handleGoogleSignin = () => {
     // Redirect to backend Google OAuth endpoint
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     window.location.href = `${API_BASE_URL}/auth/google`
   }
   return (
@@ -97,46 +103,30 @@ const Signin = () => {
                 <div className="text-sm font-semibold text-slate-400">Access your profile and applications</div>
               </div>
 
-              {errors.submit && (
-                <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-3 rounded-lg">
-                  {errors.submit}
-                </div>
-              )}
+              <ErrorMessage error={error || errors.submit} onDismiss={clearError} />
 
               <form onSubmit={handleSignIn} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                    placeholder="your@email.com"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Password</label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                      placeholder="Enter your password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
-                    >
-                      <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                    </button>
-                  </div>
-                </div>
+                <FormInput
+                  label="Email Address"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="your@email.com"
+                  required
+                />
+                <FormInput
+                  label="Password"
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  placeholder="Enter your password"
+                  required
+                  showPasswordToggle
+                  showPassword={showPassword}
+                  onTogglePassword={() => setShowPassword(!showPassword)}
+                />
 
                 <div className="flex items-center justify-between text-xs text-slate-600">
                   <label className="inline-flex items-center space-x-2 cursor-pointer">
@@ -154,10 +144,10 @@ const Signin = () => {
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={isLoading}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg py-2.5 text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? (
+                  {isLoading ? (
                     <>
                       <i className="fa-solid fa-spinner fa-spin"></i>
                       <span>Signing in...</span>
