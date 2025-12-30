@@ -109,20 +109,20 @@ const Signin = () => {
                 <FormInput
                   label="Email Address"
                   name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="your@email.com"
-                  required
-                />
+                    type="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="your@email.com"
+                    required
+                  />
                 <FormInput
                   label="Password"
-                  name="password"
+                      name="password"
                   type="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="Enter your password"
-                  required
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Enter your password"
+                      required
                   showPasswordToggle
                   showPassword={showPassword}
                   onTogglePassword={() => setShowPassword(!showPassword)}

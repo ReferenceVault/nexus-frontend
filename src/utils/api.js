@@ -69,9 +69,9 @@ export const api = {
     if (token) {
       try {
         await fetch(`${API_BASE_URL}/auth/logout`, {
-          method: 'POST',
+      method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
-        })
+    })
       } catch (error) {
         console.error('Logout API error:', error)
       }
@@ -94,6 +94,55 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, newPassword }),
     })
+    return handleApiError(response)
+  },
+
+  async updateProfile(profileData) {
+    const token = getAuthToken()
+    if (!token) {
+      throw new Error('No authentication token. Please sign in again.')
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/users/me`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(profileData),
+    })
+    
+    if (response.status === 401) {
+      // Token expired or invalid - clear auth and redirect
+      store.dispatch({ type: 'auth/logout' })
+      throw new Error('Session expired. Please sign in again.')
+    }
+    
+    return handleApiError(response)
+  },
+
+  async uploadResume(file) {
+    const token = getAuthToken()
+    if (!token) {
+      throw new Error('No authentication token. Please sign in again.')
+    }
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await fetch(`${API_BASE_URL}/resumes/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+
+    if (response.status === 401) {
+      store.dispatch({ type: 'auth/logout' })
+      throw new Error('Session expired. Please sign in again.')
+    }
+
     return handleApiError(response)
   },
 

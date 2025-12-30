@@ -3,10 +3,18 @@ import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import { setOnboardingStatus, OnboardingStatus, completeOnboarding } from '../utils/onboarding'
 import { useAuth } from '../hooks/useAuth'
+import { api } from '../utils/api'
+import ErrorMessage from '../components/common/ErrorMessage'
 
 const Onboarding = () => {
   const navigate = useNavigate()
+  const { signupData, user, updateUser, accessToken, isAuthenticated } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
+  const [errors, setErrors] = useState({})
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+  const [isUploadingResume, setIsUploadingResume] = useState(false)
+  const [resumeUploadError, setResumeUploadError] = useState(null)
   const [formData, setFormData] = useState({
     // Step 1: Basic Information
     firstName: '',
@@ -23,8 +31,6 @@ const Onboarding = () => {
     // Step 3: Video
     videoFile: null
   })
-
-  const { signupData, user } = useAuth()
 
   useEffect(() => {
     // Prefill data from signup or user data
@@ -48,19 +54,198 @@ const Onboarding = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+    // Clear error for this field
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }))
+    }
+    setSaveError(null)
   }
 
   const handleFileChange = (e, field) => {
     const file = e.target.files[0]
     setFormData(prev => ({ ...prev, [field]: file }))
+    // Clear error when file is selected
+    if (field === 'resumeFile') {
+      setResumeUploadError(null)
+    }
   }
 
-  const handleNext = () => {
+  const validateStep1 = () => {
+    const newErrors = {}
+    
+    if (!formData.firstName?.trim()) {
+      newErrors.firstName = 'First name is required'
+    }
+    if (!formData.lastName?.trim()) {
+      newErrors.lastName = 'Last name is required'
+    }
+    if (!formData.email?.trim()) {
+      newErrors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Invalid email format'
+    }
+    if (!formData.phone?.trim()) {
+      newErrors.phone = 'Phone number is required'
+    }
+    if (!formData.streetAddress?.trim()) {
+      newErrors.streetAddress = 'Street address is required'
+    }
+    if (!formData.city?.trim()) {
+      newErrors.city = 'City is required'
+    }
+    if (!formData.state?.trim()) {
+      newErrors.state = 'State/Province is required'
+    }
+    if (!formData.zipCode?.trim()) {
+      newErrors.zipCode = 'ZIP/Postal code is required'
+    }
+    if (!formData.country?.trim()) {
+      newErrors.country = 'Country is required'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const saveStep1Data = async () => {
+    try {
+      setIsSaving(true)
+      setSaveError(null)
+
+      // Check if user is authenticated and has token
+      if (!isAuthenticated || !accessToken) {
+        setSaveError('You must be signed in to save your profile')
+        setTimeout(() => navigate('/signin'), 2000)
+        return false
+      }
+
+      if (!user || !user.id) {
+        setSaveError('User information not found. Please sign in again.')
+        setTimeout(() => navigate('/signin'), 2000)
+        return false
+      }
+
+      const profileData = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        phone: formData.phone.trim(),
+        addressInformation: {
+          streetAddress: formData.streetAddress.trim(),
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          zipCode: formData.zipCode.trim(),
+          country: formData.country.trim(),
+        },
+      }
+
+      const updatedUser = await api.updateProfile(profileData)
+      
+      // Update Redux state
+      updateUser({
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        phone: updatedUser.phone,
+      })
+
+      return true
+    } catch (error) {
+      const errorMessage = error.message || 'Failed to save profile information'
+      setSaveError(errorMessage)
+      
+      // If session expired, redirect to signin
+      if (errorMessage.includes('Session expired') || errorMessage.includes('sign in again')) {
+        setTimeout(() => {
+          navigate('/signin')
+        }, 2000)
+      }
+      
+      return false
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const validateStep2 = () => {
+    if (!formData.resumeFile) {
+      setResumeUploadError('Please upload your resume')
+      return false
+    }
+
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword']
+    if (!allowedTypes.includes(formData.resumeFile.type)) {
+      setResumeUploadError('Only PDF and DOCX files are allowed')
+      return false
+    }
+
+    // Validate file size (5MB)
+    const maxSize = 5 * 1024 * 1024
+    if (formData.resumeFile.size > maxSize) {
+      setResumeUploadError('File size must be less than 5MB')
+      return false
+    }
+
+    setResumeUploadError(null)
+    return true
+  }
+
+  const uploadResume = async () => {
+    try {
+      setIsUploadingResume(true)
+      setResumeUploadError(null)
+
+      if (!isAuthenticated || !accessToken) {
+        setResumeUploadError('You must be signed in to upload your resume')
+        setTimeout(() => navigate('/signin'), 2000)
+        return false
+      }
+
+      const result = await api.uploadResume(formData.resumeFile)
+      return true
+    } catch (error) {
+      const errorMessage = error.message || 'Failed to upload resume'
+      setResumeUploadError(errorMessage)
+      
+      if (errorMessage.includes('Session expired') || errorMessage.includes('sign in again')) {
+        setTimeout(() => {
+          navigate('/signin')
+        }, 2000)
+      }
+      
+      return false
+    } finally {
+      setIsUploadingResume(false)
+    }
+  }
+
+  const handleNext = async () => {
     if (currentStep === 1) {
+      // Validate step 1 fields
+      if (!validateStep1()) {
+        return
+      }
+
+      // Save data to backend
+      const saved = await saveStep1Data()
+      if (!saved) {
+        return
+      }
+
       // Save basic info status
       setOnboardingStatus(OnboardingStatus.BASIC_INFO)
       setCurrentStep(2)
     } else if (currentStep === 2) {
+      // Validate resume
+      if (!validateStep2()) {
+        return
+      }
+
+      // Upload resume to S3
+      const uploaded = await uploadResume()
+      if (!uploaded) {
+        return
+      }
+
       // Save resume status
       setOnboardingStatus(OnboardingStatus.RESUME_UPLOADED)
       setCurrentStep(3)
@@ -305,6 +490,8 @@ const Onboarding = () => {
                     <p className="text-sm text-slate-300">Basic Information</p>
                   </div>
 
+                  <ErrorMessage error={saveError} onDismiss={() => setSaveError(null)} />
+
                 <div className="space-y-4">
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-2">
@@ -313,10 +500,15 @@ const Onboarding = () => {
                         name="firstName"
                         value={formData.firstName}
                         onChange={handleInputChange}
-                        className="w-full rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                        className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                          errors.firstName ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                        }`}
                         placeholder="John"
                         required
                       />
+                      {errors.firstName && (
+                        <p className="text-xs text-red-400">{errors.firstName}</p>
+                      )}
                     </div>
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-semibold text-slate-300">Legal Last Name *</label>
@@ -324,10 +516,15 @@ const Onboarding = () => {
                         name="lastName"
                         value={formData.lastName}
                         onChange={handleInputChange}
-                        className="w-full rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                        className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                          errors.lastName ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                        }`}
                         placeholder="Doe"
                         required
                       />
+                      {errors.lastName && (
+                        <p className="text-xs text-red-400">{errors.lastName}</p>
+                      )}
                     </div>
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-semibold text-slate-300">Email *</label>
@@ -348,10 +545,15 @@ const Onboarding = () => {
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        className="w-full rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                        className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                          errors.phone ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                        }`}
                         placeholder="+1 (555) 123-4567"
                         required
                       />
+                      {errors.phone && (
+                        <p className="text-xs text-red-400">{errors.phone}</p>
+                      )}
                     </div>
                   </div>
 
@@ -367,10 +569,15 @@ const Onboarding = () => {
                           name="streetAddress"
                           value={formData.streetAddress}
                           onChange={handleInputChange}
-                          className="w-full rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                            errors.streetAddress ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          }`}
                           placeholder="123 Main Street"
                           required
                         />
+                        {errors.streetAddress && (
+                          <p className="text-xs text-red-400">{errors.streetAddress}</p>
+                        )}
                       </div>
                       <div className="flex flex-col gap-2">
                         <label className="text-xs font-semibold text-slate-300">City *</label>
@@ -378,10 +585,15 @@ const Onboarding = () => {
                           name="city"
                           value={formData.city}
                           onChange={handleInputChange}
-                          className="w-full rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                            errors.city ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          }`}
                           placeholder="San Francisco"
                           required
                         />
+                        {errors.city && (
+                          <p className="text-xs text-red-400">{errors.city}</p>
+                        )}
                       </div>
                       <div className="flex flex-col gap-2">
                         <label className="text-xs font-semibold text-slate-300">State/Province *</label>
@@ -389,10 +601,15 @@ const Onboarding = () => {
                           name="state"
                           value={formData.state}
                           onChange={handleInputChange}
-                          className="w-full rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                            errors.state ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          }`}
                           placeholder="California"
                           required
                         />
+                        {errors.state && (
+                          <p className="text-xs text-red-400">{errors.state}</p>
+                        )}
                       </div>
                       <div className="flex flex-col gap-2">
                         <label className="text-xs font-semibold text-slate-300">ZIP/Postal Code *</label>
@@ -400,10 +617,15 @@ const Onboarding = () => {
                           name="zipCode"
                           value={formData.zipCode}
                           onChange={handleInputChange}
-                          className="w-full rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                            errors.zipCode ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          }`}
                           placeholder="94102"
                           required
                         />
+                        {errors.zipCode && (
+                          <p className="text-xs text-red-400">{errors.zipCode}</p>
+                        )}
                       </div>
                       <div className="flex flex-col gap-2">
                         <label className="text-xs font-semibold text-slate-300">Country *</label>
@@ -411,7 +633,9 @@ const Onboarding = () => {
                           name="country"
                           value={formData.country}
                           onChange={handleInputChange}
-                          className="w-full rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                            errors.country ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          }`}
                           required
                         >
                           <option value="" className="bg-slate-900 text-white">Select country</option>
@@ -420,6 +644,9 @@ const Onboarding = () => {
                           <option value="UK" className="bg-slate-900 text-white">United Kingdom</option>
                           <option value="AU" className="bg-slate-900 text-white">Australia</option>
                         </select>
+                        {errors.country && (
+                          <p className="text-xs text-red-400">{errors.country}</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -456,6 +683,9 @@ const Onboarding = () => {
                       <i className="fa-solid fa-check-circle mr-2"></i>
                       {formData.resumeFile.name}
                     </p>
+                  )}
+                  {resumeUploadError && (
+                    <ErrorMessage message={resumeUploadError} />
                   )}
                 </div>
               </div>
@@ -512,10 +742,27 @@ const Onboarding = () => {
               {currentStep < 3 ? (
                 <button
                   onClick={handleNext}
-                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition"
+                  disabled={isSaving || isUploadingResume}
+                  className={`px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition ${
+                    isSaving || isUploadingResume ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
-                  Next
-                  <i className="fa-solid fa-arrow-right ml-2"></i>
+                  {isSaving ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                      Saving...
+                    </>
+                  ) : isUploadingResume ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      Next
+                      <i className="fa-solid fa-arrow-right ml-2"></i>
+                    </>
+                  )}
                 </button>
               ) : (
                 <button
