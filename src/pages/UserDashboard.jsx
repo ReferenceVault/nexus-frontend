@@ -1,9 +1,19 @@
 import React, { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
+import { api } from '../utils/api'
+import { useAuth } from '../hooks/useAuth'
 
 const UserDashboard = () => {
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const profileFormRef = useRef(null)
   const [showProfileForm, setShowProfileForm] = useState(false)
+  
+  const userName = user?.firstName && user?.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : user?.email?.split('@')[0] || 'User'
+  const userAvatar = 'https://i.pravatar.cc/64?img=4'
 
   const handleScrollToProfile = () => {
     if (!showProfileForm) {
@@ -18,9 +28,30 @@ const UserDashboard = () => {
     }
   }
 
+  const handleLogout = async () => {
+    try {
+      await api.logout()
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Continue with logout even if API call fails
+    } finally {
+      // Clear all auth data using Redux
+      logout()
+      
+      // Redirect to home page
+      navigate('/')
+    }
+  }
+
   return (
     <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white min-h-screen flex flex-col">
-      <Header userMode activeNav="Dashboard" />
+      <Header 
+        userMode 
+        activeNav="Dashboard" 
+        userName={userName}
+        userAvatar={userAvatar}
+        onLogout={handleLogout}
+      />
 
       <main className="flex-1">
         <section className="relative overflow-hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">

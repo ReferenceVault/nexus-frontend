@@ -111,7 +111,24 @@ const Header = ({
               </button>
               <button 
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-2.5 py-1.5 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 transition flex items-center shadow-sm"
-                onClick={() => navigate('/user-dashboard')}
+                onClick={() => {
+                  // Check if user is logged in
+                  const accessToken = localStorage.getItem('accessToken')
+                  if (accessToken) {
+                    // User is logged in, go to dashboard
+                    navigate('/user-dashboard')
+                  } else {
+                    // No token, check if email exists in localStorage (user might have signed up before)
+                    const userEmail = localStorage.getItem('signupEmail')
+                    if (userEmail) {
+                      // User exists, redirect to signin
+                      navigate('/signin')
+                    } else {
+                      // New user, redirect to signup
+                      navigate('/signup')
+                    }
+                  }
+                }}
               >
                 <i className="fa-solid fa-video w-3.5 h-3.5 mr-1.5"></i>
                 Upload Resume
