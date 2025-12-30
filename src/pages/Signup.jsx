@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -11,9 +11,16 @@ import { isTokenExpired } from '../utils/apiClient'
 const Signup = () => {
   const navigate = useNavigate()
   const { login, setLoading, isLoading, error, setError, clearError, setSignupData, isAuthenticated, accessToken } = useAuth()
+  const justSignedUpRef = useRef(false)
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated (but not if we just signed up)
   useEffect(() => {
+    // Don't redirect if we just completed signup - let handleSubmit handle the redirect
+    if (justSignedUpRef.current) {
+      justSignedUpRef.current = false
+      return
+    }
+    
     if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
       navigate('/user-dashboard', { replace: true })
     }
@@ -77,18 +84,22 @@ const Signup = () => {
         formData.password
       )
       
-      // Login using Redux
-      login(response.user, response.tokens)
+      // Set flag to prevent useEffect from redirecting
+      justSignedUpRef.current = true
       
-      // Store signup data for onboarding prefilling
+      // Store signup data for onboarding prefilling (before login to avoid race conditions)
       setSignupData({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
       })
       
-      // Redirect to onboarding
-      navigate('/onboarding')
+      // Login using Redux
+      login(response.user, response.tokens)
+      
+      // Immediately redirect to onboarding for new users
+      // Using replace: true to prevent back navigation
+      navigate('/onboarding', { replace: true })
     } catch (error) {
       const errorMessage = error.message || 'Signup failed. Please try again.'
       setError(errorMessage)

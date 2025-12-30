@@ -143,14 +143,58 @@ const Onboarding = () => {
 
   const handleFileChange = (e, field) => {
     const file = e.target.files[0]
-    setFormData(prev => ({ ...prev, [field]: file }))
-    // Clear error when file is selected
+    if (!file) return
+
+    // Validate video file immediately when selected
+    if (field === 'videoFile') {
+      setVideoUploadError(null)
+      setRecordedVideo(null) // Clear recorded video if a file is uploaded
+
+      // Validate file type
+      const allowedTypes = ['video/mp4', 'video/quicktime', 'video/webm']
+      if (!allowedTypes.includes(file.type)) {
+        setVideoUploadError('Only MP4, MOV, and WebM video files are allowed')
+        e.target.value = '' // Clear the input
+        return
+      }
+
+      // Validate file size (50MB)
+      const maxSize = 50 * 1024 * 1024 // 50MB in bytes
+      const fileSizeMB = (file.size / 1024 / 1024).toFixed(2)
+      
+      if (file.size > maxSize) {
+        setVideoUploadError(
+          `Video file is too large (${fileSizeMB} MB). Maximum file size is 50 MB. Please compress your video or choose a smaller file.`
+        )
+        e.target.value = '' // Clear the input
+        return
+      }
+    }
+
+    // Validate resume file immediately when selected
     if (field === 'resumeFile') {
       setResumeUploadError(null)
-    } else if (field === 'videoFile') {
-      setVideoUploadError(null)
-      setRecordedVideo(null) // Clear recorded video if uploading file
+
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword']
+      if (!allowedTypes.includes(file.type)) {
+        setResumeUploadError('Only PDF and DOCX files are allowed')
+        e.target.value = '' // Clear the input
+        return
+      }
+
+      // Validate file size (5MB)
+      const maxSize = 5 * 1024 * 1024 // 5MB
+      const fileSizeMB = (file.size / 1024 / 1024).toFixed(2)
+      
+      if (file.size > maxSize) {
+        setResumeUploadError(`Resume file is too large (${fileSizeMB} MB). Maximum file size is 5 MB.`)
+        e.target.value = '' // Clear the input
+        return
+      }
     }
+
+    setFormData(prev => ({ ...prev, [field]: file }))
   }
 
   const startRecording = async () => {
@@ -202,6 +246,35 @@ const Onboarding = () => {
     }
   }
 
+  const validateStep3 = () => {
+    const videoToUpload = recordedVideo || formData.videoFile
+    if (!videoToUpload) {
+      setVideoUploadError('Please record or upload your video introduction')
+      return false
+    }
+
+    // Validate file type
+    const allowedTypes = ['video/mp4', 'video/quicktime', 'video/webm']
+    if (!allowedTypes.includes(videoToUpload.type)) {
+      setVideoUploadError('Only MP4, MOV, and WebM video files are allowed')
+      return false
+    }
+
+    // Validate file size (50MB)
+    const maxSize = 50 * 1024 * 1024 // 50MB in bytes
+    const fileSizeMB = (videoToUpload.size / 1024 / 1024).toFixed(2)
+    
+    if (videoToUpload.size > maxSize) {
+      setVideoUploadError(
+        `Video file is too large (${fileSizeMB} MB). Maximum file size is 50 MB. Please compress your video or choose a smaller file.`
+      )
+      return false
+    }
+
+    setVideoUploadError(null)
+    return true
+  }
+
   const uploadVideo = async (videoFile) => {
     try {
       setIsUploadingVideo(true)
@@ -218,17 +291,33 @@ const Onboarding = () => {
         return false
       }
 
-      // Validate file size (50MB)
-      const maxSize = 50 * 1024 * 1024
+      // Double-check file size before upload (in case validation was bypassed)
+      const maxSize = 50 * 1024 * 1024 // 50MB
+      const fileSizeMB = (videoFile.size / 1024 / 1024).toFixed(2)
+      
       if (videoFile.size > maxSize) {
-        setVideoUploadError('File size must be less than 50MB')
+        setVideoUploadError(
+          `Video file is too large (${fileSizeMB} MB). Maximum file size is 50 MB. Please compress your video or choose a smaller file.`
+        )
         return false
       }
 
       await api.uploadVideo(videoFile)
       return true
     } catch (error) {
-      const errorMessage = error.message || 'Failed to upload video'
+      let errorMessage = error.message || 'Failed to upload video'
+      
+      // Handle specific error cases
+      if (errorMessage.includes('File too large') || errorMessage.includes('too large') || errorMessage.includes('LIMIT_FILE_SIZE')) {
+        const fileSizeMB = (videoFile.size / 1024 / 1024).toFixed(2)
+        errorMessage = `Video file is too large (${fileSizeMB} MB). Maximum file size is 50 MB. Please compress your video or choose a smaller file.`
+      } else if (errorMessage.includes('413') || errorMessage.includes('Request Entity Too Large')) {
+        errorMessage = 'Video file is too large. Maximum file size is 50 MB. Please compress your video or choose a smaller file.'
+      } else if (!errorMessage.includes('Session expired') && !errorMessage.includes('sign in again')) {
+        // Keep original error message if it's not a session error
+        errorMessage = `Failed to upload video: ${errorMessage}`
+      }
+      
       setVideoUploadError(errorMessage)
       
       if (errorMessage.includes('Session expired') || errorMessage.includes('sign in again')) {
@@ -434,12 +523,12 @@ const Onboarding = () => {
   const [showCompletion, setShowCompletion] = useState(false)
 
   const handleSubmit = async () => {
-    const videoFile = formData.videoFile || recordedVideo
-    if (!videoFile) {
-      setVideoUploadError('Please record or upload a video')
+    // Validate video before attempting upload
+    if (!validateStep3()) {
       return
     }
 
+    const videoFile = formData.videoFile || recordedVideo
     const uploaded = await uploadVideo(videoFile)
     if (!uploaded) {
       return
