@@ -111,6 +111,29 @@ export const api = {
     return handleApiError(response)
   },
 
+  async startAnalysis(resumeId, videoId) {
+    const response = await authenticatedFetch('/analysis/start', {
+      method: 'POST',
+      body: JSON.stringify({ resumeId, videoId }),
+    })
+    return handleApiError(response)
+  },
+
+  async getAnalysisStatus(analysisId) {
+    const response = await authenticatedFetch(`/analysis/status/${analysisId}`)
+    return handleApiError(response)
+  },
+
+  async getLatestAnalysis() {
+    const response = await authenticatedFetch('/analysis/latest')
+    return handleApiError(response)
+  },
+
+  async getAnalysisResults(analysisId) {
+    const response = await authenticatedFetch(`/analysis/results/${analysisId}`)
+    return handleApiError(response)
+  },
+
   // Generic authenticated request helper (now uses authenticatedFetch)
   async authenticatedRequest(url, options = {}) {
     const response = await authenticatedFetch(url, options)

@@ -23,6 +23,8 @@ const Onboarding = () => {
   const [recordedVideo, setRecordedVideo] = useState(null)
   const [mediaRecorder, setMediaRecorder] = useState(null)
   const [videoStream, setVideoStream] = useState(null)
+  const [uploadedResumeId, setUploadedResumeId] = useState(null)
+  const [uploadedVideoId, setUploadedVideoId] = useState(null)
   const [formData, setFormData] = useState({
     // Step 1: Basic Information
     firstName: '',
@@ -64,6 +66,9 @@ const Onboarding = () => {
         try {
           const resumes = await api.getUserResumes()
           step2Complete = resumes && resumes.length > 0
+          if (resumes && resumes.length > 0) {
+            setUploadedResumeId(resumes[0].id)
+          }
         } catch (error) {
           console.error('Error checking resumes:', error)
         }
@@ -73,6 +78,9 @@ const Onboarding = () => {
         try {
           const videos = await api.getUserVideos()
           step3Complete = videos && videos.length > 0
+          if (videos && videos.length > 0) {
+            setUploadedVideoId(videos[0].id)
+          }
         } catch (error) {
           console.error('Error checking videos:', error)
         }
@@ -302,7 +310,8 @@ const Onboarding = () => {
         return false
       }
 
-      await api.uploadVideo(videoFile)
+      const result = await api.uploadVideo(videoFile)
+      setUploadedVideoId(result.id)
       return true
     } catch (error) {
       let errorMessage = error.message || 'Failed to upload video'
@@ -463,6 +472,7 @@ const Onboarding = () => {
       }
 
       const result = await api.uploadResume(formData.resumeFile)
+      setUploadedResumeId(result.id)
       return true
     } catch (error) {
       const errorMessage = error.message || 'Failed to upload resume'
@@ -529,14 +539,64 @@ const Onboarding = () => {
     }
 
     const videoFile = formData.videoFile || recordedVideo
-    const uploaded = await uploadVideo(videoFile)
-    if (!uploaded) {
-      return
+    
+    // Upload video
+    setIsUploadingVideo(true)
+    try {
+      const videoResult = await api.uploadVideo(videoFile)
+      setUploadedVideoId(videoResult.id)
+      
+      // Save video status
+      setOnboardingStatus(OnboardingStatus.VIDEO_UPLOADED)
+
+      // Get resume ID if not already set
+      let resumeId = uploadedResumeId
+      if (!resumeId) {
+        try {
+          const resumes = await api.getUserResumes()
+          if (resumes && resumes.length > 0) {
+            resumeId = resumes[0].id
+            setUploadedResumeId(resumeId)
+          }
+        } catch (error) {
+          console.error('Error fetching resumes:', error)
+        }
+      }
+
+      // Start analysis if we have both resume and video IDs
+      if (resumeId && videoResult.id) {
+        try {
+          console.log('Starting analysis with resumeId:', resumeId, 'videoId:', videoResult.id)
+          const analysisRequest = await api.startAnalysis(resumeId, videoResult.id)
+          console.log('Analysis started successfully:', analysisRequest)
+          
+          // Navigate to analysis status page immediately
+          navigate(`/analysis/${analysisRequest.id}`, { replace: true })
+          return // Exit early - navigation will happen
+        } catch (error) {
+          console.error('Failed to start analysis:', error)
+          setVideoUploadError('Video uploaded successfully, but failed to start analysis: ' + (error.message || 'Unknown error'))
+        }
+      } else {
+        console.error('Missing IDs - resumeId:', resumeId, 'videoId:', videoResult.id)
+        setVideoUploadError('Unable to start analysis. Missing resume or video. Please ensure both are uploaded.')
+      }
+    } catch (error) {
+      console.error('Error uploading video:', error)
+      let errorMessage = error.message || 'Failed to upload video'
+      
+      // Handle specific error cases
+      if (errorMessage.includes('File too large') || errorMessage.includes('too large')) {
+        const fileSizeMB = (videoFile.size / 1024 / 1024).toFixed(2)
+        errorMessage = `Video file is too large (${fileSizeMB} MB). Maximum file size is 50 MB.`
+      }
+      
+      setVideoUploadError(errorMessage)
+    } finally {
+      setIsUploadingVideo(false)
     }
 
-    // Save video status
-    setOnboardingStatus(OnboardingStatus.VIDEO_UPLOADED)
-    // Show completion screen
+    // Only show completion if we didn't navigate to analysis page
     setShowCompletion(true)
   }
 

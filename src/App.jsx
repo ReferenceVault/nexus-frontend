@@ -13,6 +13,7 @@ import UserDashboard from './pages/UserDashboard'
 import Onboarding from './pages/Onboarding'
 import Assessment from './pages/Assessment'
 import GoogleCallback from './pages/GoogleCallback'
+import AnalysisStatus from './pages/AnalysisStatus'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import PublicRoute from './components/common/PublicRoute'
 
@@ -32,9 +33,10 @@ function App() {
         <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
         <Route path="/reset-password" element={<PublicRoute><ResetPassword /></PublicRoute>} />
         <Route path="/auth/google/callback" element={<GoogleCallback />} />
-        <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
-        <Route path="/user-dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-        <Route path="/assessments" element={<ProtectedRoute><Assessment /></ProtectedRoute>} />
+            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+            <Route path="/analysis/:id" element={<ProtectedRoute><AnalysisStatus /></ProtectedRoute>} />
+            <Route path="/user-dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+        <Route path="/assessments/:id?" element={<ProtectedRoute><Assessment /></ProtectedRoute>} />
         <Route path="/create-profile" element={<ProtectedRoute><CreateProfile /></ProtectedRoute>} />
         <Route path="/import-profile" element={<ProtectedRoute><ImportProfile /></ProtectedRoute>} />
         <Route path="/job-matches" element={<ProtectedRoute><JobMatches /></ProtectedRoute>} />
