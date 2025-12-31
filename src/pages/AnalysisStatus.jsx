@@ -25,7 +25,7 @@ const AnalysisStatus = () => {
     // Connect WebSocket
     wsClient.connect()
 
-    // Subscribe to progress updates
+    // Subscribe to progress updates via WebSocket
     const unsubscribe = wsClient.on('analysis:progress', (data) => {
       if (data.analysisRequestId === id) {
         setAnalysis(prev => ({
@@ -34,27 +34,27 @@ const AnalysisStatus = () => {
           progress: data.progress,
         }))
         
-        // If completed, navigate to results
+        // If completed, redirect to assessments page
         if (data.status === 'COMPLETED') {
           setTimeout(() => {
             navigate(`/assessments/${id}`, { replace: true })
-          }, 2000)
+          }, 1500000)
         }
       }
     })
 
-    // Fetch initial status
+    // Fetch initial status only once
     const fetchStatus = async () => {
       try {
         setLoading(true)
         const status = await api.getAnalysisStatus(id)
         setAnalysis(status)
 
-        // If already completed, navigate to results
+        // If already completed, redirect to assessments
         if (status.status === 'COMPLETED') {
           setTimeout(() => {
             navigate(`/assessments/${id}`, { replace: true })
-          }, 1000)
+          }, 1000000)
         }
       } catch (err) {
         setError(err.message || 'Failed to load analysis status')
@@ -65,16 +65,8 @@ const AnalysisStatus = () => {
 
     fetchStatus()
 
-    // Poll for updates every 5 seconds (fallback if WebSocket fails)
-    const pollInterval = setInterval(() => {
-      if (analysis?.status !== 'COMPLETED' && analysis?.status !== 'FAILED') {
-        fetchStatus()
-      }
-    }, 5000)
-
     return () => {
       unsubscribe()
-      clearInterval(pollInterval)
     }
   }, [id, isAuthenticated, accessToken, navigate])
 
@@ -105,28 +97,27 @@ const AnalysisStatus = () => {
     if (!analysis) return []
     
     const status = analysis.status
-    const progress = analysis.progress
 
     return [
       {
         label: 'Document parsed successfully',
-        completed: progress >= 20,
-        inProgress: status === 'RESUME_PARSING' && progress < 20,
+        completed: status !== 'PENDING' && status !== 'RESUME_PARSING',
+        inProgress: status === 'RESUME_PARSING',
       },
       {
         label: 'Skills extracted and categorized',
-        completed: progress >= 30,
-        inProgress: status === 'RESUME_ANALYZING' && progress >= 20 && progress < 30,
+        completed: status === 'RESUME_ANALYZING' || status === 'VIDEO_TRANSCRIBING' || status === 'VIDEO_ANALYZING' || status === 'GENERATING_REPORT' || status === 'COMPLETED',
+        inProgress: status === 'RESUME_ANALYZING',
       },
       {
         label: 'Analyzing content quality and impact',
-        completed: progress >= 40,
-        inProgress: status === 'RESUME_ANALYZING' && progress >= 30 && progress < 40,
+        completed: status === 'VIDEO_TRANSCRIBING' || status === 'VIDEO_ANALYZING' || status === 'GENERATING_REPORT' || status === 'COMPLETED',
+        inProgress: status === 'RESUME_ANALYZING',
       },
       {
         label: 'Generating improvement suggestions',
-        completed: progress >= 40,
-        inProgress: status === 'RESUME_ANALYZING' && progress >= 30 && progress < 40,
+        completed: status === 'VIDEO_TRANSCRIBING' || status === 'VIDEO_ANALYZING' || status === 'GENERATING_REPORT' || status === 'COMPLETED',
+        inProgress: status === 'RESUME_ANALYZING',
       },
     ]
   }
@@ -135,28 +126,27 @@ const AnalysisStatus = () => {
     if (!analysis) return []
     
     const status = analysis.status
-    const progress = analysis.progress
 
     return [
       {
         label: 'Video uploaded and transcribed',
-        completed: progress >= 50,
-        inProgress: status === 'VIDEO_TRANSCRIBING' && progress < 50,
+        completed: status === 'VIDEO_ANALYZING' || status === 'GENERATING_REPORT' || status === 'COMPLETED',
+        inProgress: status === 'VIDEO_TRANSCRIBING',
       },
       {
         label: 'Analyzing communication clarity',
-        completed: progress >= 60,
-        inProgress: status === 'VIDEO_ANALYZING' && progress >= 50 && progress < 60,
+        completed: status === 'GENERATING_REPORT' || status === 'COMPLETED',
+        inProgress: status === 'VIDEO_ANALYZING',
       },
       {
         label: 'Evaluating presentation quality',
-        completed: progress >= 70,
-        inProgress: status === 'VIDEO_ANALYZING' && progress >= 60 && progress < 70,
+        completed: status === 'GENERATING_REPORT' || status === 'COMPLETED',
+        inProgress: status === 'VIDEO_ANALYZING',
       },
       {
         label: 'Generating personalized tips',
-        completed: progress >= 80,
-        inProgress: status === 'GENERATING_REPORT' && progress >= 70 && progress < 80,
+        completed: status === 'COMPLETED',
+        inProgress: status === 'GENERATING_REPORT',
       },
     ]
   }
@@ -185,47 +175,89 @@ const AnalysisStatus = () => {
     return null
   }
 
+  // Calculate dynamic values
   const resumeSteps = getResumeSteps()
   const videoSteps = getVideoSteps()
+  
+  // Calculate estimated time remaining (in minutes)
+  const getEstimatedTime = () => {
+    if (analysis.status === 'COMPLETED') return 'Results Ready!'
+    if (analysis.progress >= 80) return '1-2'
+    if (analysis.progress >= 50) return '2-3'
+    if (analysis.progress >= 20) return '3-4'
+    return '4-5'
+  }
+
+  // Calculate candidate quality percentile based on progress
+  const getCandidateQuality = () => {
+    if (analysis.progress >= 90) return 'Top 10%'
+    if (analysis.progress >= 75) return 'Top 15%'
+    if (analysis.progress >= 50) return 'Top 25%'
+    if (analysis.progress >= 25) return 'Top 50%'
+    return 'Analyzing...'
+  }
 
   return (
     <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 min-h-screen text-white">
       <Header />
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-6xl mx-auto">
+          {/* Profile Complete Section */}
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4">
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center">
+                <i className="fa-solid fa-check text-white text-4xl"></i>
+              </div>
+            </div>
+            <h1 className="text-4xl font-bold mb-4">Profile Complete!</h1>
+            <p className="text-xl text-gray-300 mb-8">
               Your onboarding is complete and AI feedback is on the way
-            </h1>
-            <p className="text-xl text-gray-300">
-              {getStatusMessage(analysis.status)}
             </p>
-          </div>
+            
+            {/* Progress Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
+                <div className={`text-3xl font-bold mb-2 ${analysis.status === 'COMPLETED' ? 'text-green-400' : ''}`}>
+                  {getEstimatedTime()}
+                </div>
+                <div className="text-gray-300">
+                  {analysis.status === 'COMPLETED' ? 'Analysis Complete' : 'Time to Complete'}
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
+                <div className="text-3xl font-bold mb-2">{analysis.progress}%</div>
+                <div className="text-gray-300">Profile Completeness</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
+                <div className="text-3xl font-bold mb-2">{getCandidateQuality()}</div>
+                <div className="text-gray-300">Candidate Quality</div>
+              </div>
+            </div>
 
-          {/* Progress Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
-              <div className="text-3xl font-bold mb-2">5.42</div>
-              <div className="text-gray-300">Time to Complete</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
-              <div className="text-3xl font-bold mb-2">{analysis.progress}%</div>
-              <div className="text-gray-300">Profile Completeness</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
-              <div className="text-3xl font-bold mb-2">Top 15%</div>
-              <div className="text-gray-300">Candidate Quality</div>
-            </div>
+            <button
+              onClick={() => navigate('/user-dashboard')}
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition flex items-center gap-2 mx-auto"
+            >
+              View Your Dashboard
+              <i className="fa-solid fa-arrow-right"></i>
+            </button>
           </div>
 
           {/* Main Analysis Panel */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-8 mb-8">
+          <div className="bg-gradient-to-br from-purple-600/20 to-indigo-600/20 backdrop-blur-sm rounded-xl p-8 mb-8 border border-purple-500/30">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold flex items-center">
                 <i className="fa-solid fa-robot mr-3"></i>
                 AI Analysis in Progress
               </h2>
-              <span className="text-sm text-gray-300">Processing...</span>
+              <span className="text-sm text-gray-300 flex items-center gap-2">
+                {analysis.status !== 'COMPLETED' && analysis.status !== 'FAILED' && (
+                  <>
+                    Processing...
+                    <i className="fa-solid fa-spinner fa-spin"></i>
+                  </>
+                )}
+              </span>
             </div>
             <p className="text-gray-300 mb-8">
               Our AI is analyzing your profile and preparing personalized feedback
@@ -239,7 +271,18 @@ const AnalysisStatus = () => {
                     <i className="fa-solid fa-file-lines mr-2"></i>
                     Resume Analysis
                   </h3>
-                  <span className="text-sm text-gray-300">Processing...</span>
+                  <span className="text-sm text-gray-300 flex items-center gap-2">
+                    {analysis.status === 'RESUME_PARSING' || analysis.status === 'RESUME_ANALYZING' ? (
+                      <>
+                        Processing...
+                        <i className="fa-solid fa-spinner fa-spin"></i>
+                      </>
+                    ) : analysis.progress >= 40 ? (
+                      'Completed'
+                    ) : (
+                      'Pending'
+                    )}
+                  </span>
                 </div>
                 <ul className="space-y-3">
                   {resumeSteps.map((step, index) => (
@@ -257,7 +300,13 @@ const AnalysisStatus = () => {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-4 text-sm text-gray-300">~3 mins</div>
+                <div className="mt-4 text-sm text-gray-300">
+                  {analysis.status === 'RESUME_PARSING' || analysis.status === 'RESUME_ANALYZING' 
+                    ? 'Estimated completion: ~3 mins'
+                    : analysis.progress >= 40 
+                    ? 'Completed'
+                    : 'Estimated completion: ~3 mins'}
+                </div>
               </div>
 
               {/* Video Analysis */}
@@ -267,7 +316,18 @@ const AnalysisStatus = () => {
                     <i className="fa-solid fa-video mr-2"></i>
                     Video Analysis
                   </h3>
-                  <span className="text-sm text-gray-300">Processing...</span>
+                  <span className="text-sm text-gray-300 flex items-center gap-2">
+                    {analysis.status === 'VIDEO_TRANSCRIBING' || analysis.status === 'VIDEO_ANALYZING' || analysis.status === 'GENERATING_REPORT' ? (
+                      <>
+                        Processing...
+                        <i className="fa-solid fa-spinner fa-spin"></i>
+                      </>
+                    ) : analysis.progress >= 50 ? (
+                      'Completed'
+                    ) : (
+                      'Pending'
+                    )}
+                  </span>
                 </div>
                 <ul className="space-y-3">
                   {videoSteps.map((step, index) => (
@@ -285,7 +345,13 @@ const AnalysisStatus = () => {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-4 text-sm text-gray-300">~5 mins</div>
+                <div className="mt-4 text-sm text-gray-300">
+                  {analysis.status === 'VIDEO_TRANSCRIBING' || analysis.status === 'VIDEO_ANALYZING' || analysis.status === 'GENERATING_REPORT'
+                    ? 'Estimated completion: ~5 mins'
+                    : analysis.progress >= 80 
+                    ? 'Completed'
+                    : 'Estimated completion: ~5 mins'}
+                </div>
               </div>
             </div>
 
@@ -302,7 +368,9 @@ const AnalysisStatus = () => {
                 ></div>
               </div>
               <p className="text-sm text-gray-300 mt-2">
-                Your AI feedback will be ready in approximately 3-5 minutes
+                {analysis.status === 'COMPLETED' 
+                  ? 'Analysis complete! Redirecting to results...'
+                  : `Your AI feedback will be ready in approximately ${getEstimatedTime()} minutes`}
               </p>
             </div>
           </div>
