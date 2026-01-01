@@ -181,12 +181,13 @@ const AnalysisStatus = () => {
   
   // Calculate estimated time remaining (in minutes)
   const getEstimatedTime = () => {
-    if (analysis.status === 'COMPLETED') return 'Results Ready!'
-    if (analysis.progress >= 80) return '1-2'
-    if (analysis.progress >= 50) return '2-3'
-    if (analysis.progress >= 20) return '3-4'
-    return '4-5'
-  }
+    if (analysis.status === 'COMPLETED') return 'Results ready'
+    if (analysis.progress >= 90) return 'Less than 1 min'
+    if (analysis.progress >= 75) return '1–2 min'
+    if (analysis.progress >= 50) return '2–3 min'
+    if (analysis.progress >= 25) return '3–4 min'
+    return '4+ min'
+  }  
 
   // Calculate candidate quality percentile based on progress
   const getCandidateQuality = () => {
@@ -302,10 +303,10 @@ const AnalysisStatus = () => {
                 </ul>
                 <div className="mt-4 text-sm text-gray-300">
                   {analysis.status === 'RESUME_PARSING' || analysis.status === 'RESUME_ANALYZING' 
-                    ? 'Estimated completion: ~3 mins'
+                    ? 'Estimated completion: ~1 min'
                     : analysis.progress >= 40 
                     ? 'Completed'
-                    : 'Estimated completion: ~3 mins'}
+                    : 'Estimated completion: ~1 min'}
                 </div>
               </div>
 
@@ -347,10 +348,10 @@ const AnalysisStatus = () => {
                 </ul>
                 <div className="mt-4 text-sm text-gray-300">
                   {analysis.status === 'VIDEO_TRANSCRIBING' || analysis.status === 'VIDEO_ANALYZING' || analysis.status === 'GENERATING_REPORT'
-                    ? 'Estimated completion: ~5 mins'
+                    ? 'Estimated completion: ~3 mins'
                     : analysis.progress >= 80 
                     ? 'Completed'
-                    : 'Estimated completion: ~5 mins'}
+                    : 'Estimated completion: ~3 mins'}
                 </div>
               </div>
             </div>
@@ -369,7 +370,7 @@ const AnalysisStatus = () => {
               </div>
               <p className="text-sm text-gray-300 mt-2">
                 {analysis.status === 'COMPLETED' 
-                  ? 'Analysis complete! Redirecting to results...'
+                  ? 'Analysis complete!'
                   : `Your AI feedback will be ready in approximately ${getEstimatedTime()} minutes`}
               </p>
             </div>
