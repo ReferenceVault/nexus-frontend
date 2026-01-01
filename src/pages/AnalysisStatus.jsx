@@ -34,12 +34,8 @@ const AnalysisStatus = () => {
           progress: data.progress,
         }))
         
-        // If completed, redirect to assessments page
-        if (data.status === 'COMPLETED') {
-          setTimeout(() => {
-            navigate(`/assessments/${id}`, { replace: true })
-          }, 1500000)
-        }
+        // If completed, don't auto-redirect - let user click button
+        // Status will be updated and button will appear
       }
     })
 
@@ -50,12 +46,8 @@ const AnalysisStatus = () => {
         const status = await api.getAnalysisStatus(id)
         setAnalysis(status)
 
-        // If already completed, redirect to assessments
-        if (status.status === 'COMPLETED') {
-          setTimeout(() => {
-            navigate(`/assessments/${id}`, { replace: true })
-          }, 1000000)
-        }
+        // If already completed, don't auto-redirect - let user click button
+        // Button will be shown in UI
       } catch (err) {
         setError(err.message || 'Failed to load analysis status')
       } finally {
@@ -374,6 +366,20 @@ const AnalysisStatus = () => {
                   : `Your AI feedback will be ready in approximately ${getEstimatedTime()} minutes`}
               </p>
             </div>
+
+            {/* View Full Report Button - Show when completed */}
+            {analysis.status === 'COMPLETED' && (
+              <div className="mt-6 pt-6 border-t border-white/20">
+                <button
+                  onClick={() => navigate(`/assessments/${id}`)}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  <i className="fa-solid fa-chart-line"></i>
+                  View Full Assessment Report
+                  <i className="fa-solid fa-arrow-right"></i>
+                </button>
+              </div>
+            )}
           </div>
 
           {analysis.status === 'FAILED' && (
