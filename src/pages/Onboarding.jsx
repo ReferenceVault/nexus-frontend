@@ -88,8 +88,7 @@ const Onboarding = () => {
         // Determine current step based on completion
         let initialStep = 1
         if (step1Complete && step2Complete && step3Complete) {
-          // All steps complete - show completion screen
-          setShowCompletion(true)
+          // All steps complete - user should see step 3
           initialStep = 3
         } else if (step1Complete && step2Complete) {
           initialStep = 3
@@ -530,8 +529,6 @@ const Onboarding = () => {
     }
   }
 
-  const [showCompletion, setShowCompletion] = useState(false)
-
   const handleSubmit = async () => {
     // Validate video before attempting upload
     if (!validateStep3()) {
@@ -570,7 +567,10 @@ const Onboarding = () => {
           const analysisRequest = await api.startAnalysis(resumeId, videoResult.id)
           console.log('Analysis started successfully:', analysisRequest)
           
-          // Navigate to analysis status page immediately
+          // Complete onboarding
+          completeOnboarding()
+          
+          // Navigate to analysis status page
           navigate(`/analysis/${analysisRequest.id}`, { replace: true })
           return // Exit early - navigation will happen
         } catch (error) {
@@ -595,9 +595,6 @@ const Onboarding = () => {
     } finally {
       setIsUploadingVideo(false)
     }
-
-    // Only show completion if we didn't navigate to analysis page
-    setShowCompletion(true)
   }
 
   // Cleanup video stream on unmount
@@ -608,13 +605,6 @@ const Onboarding = () => {
       }
     }
   }, [videoStream])
-
-  const handleGoToDashboard = () => {
-    // Complete onboarding
-    completeOnboarding()
-    // Navigate to dashboard
-    navigate('/user-dashboard')
-  }
 
   const steps = [
     { number: 1, title: 'Basic Information', icon: 'fa-user' },
@@ -638,157 +628,6 @@ const Onboarding = () => {
       <Header />
 
       <main className="flex-1">
-        {showCompletion ? (
-          <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 py-6 lg:py-9">
-            {/* Animated Background */}
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
-              <div className="absolute top-1/2 -left-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl" />
-            </div>
-
-            <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-              {/* Profile Complete Section */}
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500 mb-3">
-                  <i className="fa-solid fa-check text-white text-lg"></i>
-                </div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white mb-1.5 flex items-center justify-center gap-2">
-                  <i className="fa-solid fa-party-horn text-yellow-400 text-sm"></i>
-                  Profile Complete!
-                </h1>
-                <p className="text-xs text-slate-300 mb-4">Your onboarding is complete and AI feedback is on the way</p>
-
-                {/* Metrics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-xl mx-auto mb-4">
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 shadow-sm p-3">
-                    <div className="text-xl font-bold text-indigo-300 mb-0.5">5.42</div>
-                    <div className="text-[10px] text-slate-400">Time to Complete</div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 shadow-sm p-3">
-                    <div className="text-xl font-bold text-indigo-300 mb-0.5">100%</div>
-                    <div className="text-[10px] text-slate-400">Profile Completeness</div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 shadow-sm p-3">
-                    <div className="text-xl font-bold text-indigo-300 mb-0.5">Top 15%</div>
-                    <div className="text-[10px] text-slate-400">Candidate Quality</div>
-                  </div>
-                </div>
-
-                {/* Go to Dashboard Button */}
-                <button
-                  onClick={handleGoToDashboard}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg"
-                >
-                  View Your Dashboard <i className="fa-solid fa-arrow-right ml-2 text-xs"></i>
-                </button>
-              </div>
-
-              {/* AI Analysis Section */}
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-2">
-                  <div className="flex items-center gap-2 text-white">
-                    <i className="fa-solid fa-robot text-base"></i>
-                    <div>
-                      <h2 className="text-base font-bold">AI Analysis in Progress</h2>
-                      <p className="text-[10px] text-indigo-100">Our AI is analyzing your profile and preparing personalized feedback</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-3">
-                  <div className="grid md:grid-cols-2 gap-4 mb-3">
-                    {/* Resume Analysis */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5">
-                          <i className="fa-solid fa-file-lines text-indigo-300 text-xs"></i>
-                          <h3 className="font-semibold text-white text-xs">Resume Analysis</h3>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400 text-[10px]">
-                          <span>Processing...</span>
-                          <i className="fa-solid fa-spinner fa-spin text-xs"></i>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5 text-[10px]">
-                        <div className="flex items-center gap-1.5 text-emerald-400">
-                          <i className="fa-solid fa-check text-xs"></i>
-                          <span>Document parsed successfully</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-emerald-400">
-                          <i className="fa-solid fa-check text-xs"></i>
-                          <span>Skills extracted and categorized</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400">
-                          <i className="fa-solid fa-circle text-[8px]"></i>
-                          <span>Analyzing content quality and impact</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400">
-                          <i className="fa-solid fa-circle text-[8px]"></i>
-                          <span>Generating improvement suggestions</span>
-                        </div>
-                      </div>
-                      <div className="mt-3">
-                        <div className="text-lg font-bold text-indigo-300">~3 mins</div>
-                        <div className="text-[10px] text-slate-400">Estimated completion</div>
-                      </div>
-                    </div>
-
-                    {/* Video Analysis */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5">
-                          <i className="fa-solid fa-video text-indigo-300 text-xs"></i>
-                          <h3 className="font-semibold text-white text-xs">Video Analysis</h3>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400 text-[10px]">
-                          <span>Processing...</span>
-                          <i className="fa-solid fa-spinner fa-spin text-xs"></i>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5 text-[10px]">
-                        <div className="flex items-center gap-1.5 text-emerald-400">
-                          <i className="fa-solid fa-check text-xs"></i>
-                          <span>Video uploaded and transcribed</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400">
-                          <i className="fa-solid fa-circle text-[8px]"></i>
-                          <span>Analyzing communication clarity</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400">
-                          <i className="fa-solid fa-circle text-[8px]"></i>
-                          <span>Evaluating presentation quality</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400">
-                          <i className="fa-solid fa-circle text-[8px]"></i>
-                          <span>Generating personalized tips</span>
-                        </div>
-                      </div>
-                      <div className="mt-3">
-                        <div className="text-lg font-bold text-indigo-300">~5 mins</div>
-                        <div className="text-[10px] text-slate-400">Estimated completion</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Overall Progress */}
-                  <div className="pt-3 border-t border-white/20">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-semibold text-white">Overall Progress</span>
-                      <span className="text-[10px] font-semibold text-indigo-300">78%</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden mb-1.5">
-                      <div className="h-full bg-gradient-to-r from-emerald-500 to-indigo-600 rounded-full" style={{ width: '78%' }}></div>
-                    </div>
-                    <p className="text-[10px] text-slate-400">Your AI feedback will be ready in approximately 3-5 minutes</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        ) : (
           <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 py-8 lg:py-12">
             {/* Animated Background */}
             <div className="absolute inset-0 overflow-hidden">
@@ -1219,7 +1058,6 @@ const Onboarding = () => {
           </div>
           </div>
         </section>
-        )}
       </main>
     </div>
   )
