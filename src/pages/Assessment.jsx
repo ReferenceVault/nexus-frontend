@@ -223,6 +223,14 @@ const Assessment = () => {
   const strongSkills = skillsGap.strongSkills || []
   const recommendedSkills = skillsGap.recommendedSkills || []
 
+  // Filter and get 2 strengths and 2 improvements
+  const strengths = strengthsAndImprovements.filter(item => 
+    item.type === 'Strength' || item.type === 'strength'
+  ).slice(0, 2)
+  const improvements = strengthsAndImprovements.filter(item => 
+    item.type === 'Improvement' || item.type === 'improvement'
+  ).slice(0, 2)
+
   // Get color for recommendation priority
   const getRecommendationColor = (priority, index) => {
     if (priority === 'high') return 'yellow'
@@ -232,15 +240,17 @@ const Assessment = () => {
 
   // Get icon for strength/improvement type
   const getStrengthIcon = (type) => {
-    if (type === 'strength') return 'fa-check-circle'
-    if (type === 'improvement') return 'fa-triangle-exclamation'
+    const normalizedType = type?.toLowerCase()
+    if (normalizedType === 'strength') return 'fa-check-circle'
+    if (normalizedType === 'improvement') return 'fa-triangle-exclamation'
     return 'fa-lightbulb'
   }
 
   // Get color for strength/improvement type
   const getStrengthColor = (type) => {
-    if (type === 'strength') return 'emerald'
-    if (type === 'improvement') return 'yellow'
+    const normalizedType = type?.toLowerCase()
+    if (normalizedType === 'strength') return 'emerald'
+    if (normalizedType === 'improvement') return 'yellow'
     return 'blue'
   }
 
@@ -469,7 +479,7 @@ const Assessment = () => {
                   <h3 className="text-base font-bold text-white">Key Recommendations</h3>
                 </div>
                 <div className="space-y-3 mb-4">
-                  {keyRecommendations.slice(0, 3).map((rec, index) => {
+                  {keyRecommendations.slice(0, 4).map((rec, index) => {
                     const color = getRecommendationColor(rec.priority, index)
                     const colorClasses = {
                       yellow: 'bg-yellow-500/20 border-yellow-500/30',
@@ -510,33 +520,61 @@ const Assessment = () => {
                   <h3 className="text-base font-bold text-white">Strengths & Improvements</h3>
                 </div>
                 <div className="space-y-3 mb-4">
-                  {strengthsAndImprovements.slice(0, 3).map((item, index) => {
-                    const type = item.type || (index === 0 ? 'strength' : index === 1 ? 'improvement' : 'tip')
-                    const color = getStrengthColor(type)
-                    const icon = getStrengthIcon(type)
+                  {/* Strengths */}
+                  {strengths.map((item, index) => {
+                    const color = 'emerald'
                     const colorClasses = {
                       emerald: 'bg-emerald-500/20 border-emerald-500/30',
-                      yellow: 'bg-yellow-500/20 border-yellow-500/30',
-                      blue: 'bg-blue-500/20 border-blue-500/30',
                     }
                     const textColors = {
                       emerald: 'text-emerald-400',
-                      yellow: 'text-yellow-400',
-                      blue: 'text-blue-400',
                     }
                     return (
-                      <div key={index} className={`${colorClasses[color]} border rounded-lg p-3`}>
+                      <div key={`strength-${index}`} className={`${colorClasses[color]} border rounded-lg p-3`}>
                         <div className="flex items-start gap-2">
-                          <i className={`fa-solid ${icon} ${textColors[color]} mt-0.5 text-xs`}></i>
-                          <div>
-                            <div className="font-semibold text-white mb-0.5 text-sm">{item.title || item.type || 'Item'}</div>
-                            <div className="text-xs text-slate-300">{item.message || item.description || ''}</div>
+                          <i className={`fa-solid fa-check-circle ${textColors[color]} mt-0.5 text-xs`}></i>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="font-semibold text-white text-sm">{item.category || 'Strength'}</div>
+                              <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-500/50">
+                                Strength
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-300">{item.message || ''}</div>
                           </div>
                         </div>
                       </div>
                     )
                   })}
-                  {strengthsAndImprovements.length === 0 && (
+                  
+                  {/* Improvements */}
+                  {improvements.map((item, index) => {
+                    const color = 'yellow'
+                    const colorClasses = {
+                      yellow: 'bg-yellow-500/20 border-yellow-500/30',
+                    }
+                    const textColors = {
+                      yellow: 'text-yellow-400',
+                    }
+                    return (
+                      <div key={`improvement-${index}`} className={`${colorClasses[color]} border rounded-lg p-3`}>
+                        <div className="flex items-start gap-2">
+                          <i className={`fa-solid fa-triangle-exclamation ${textColors[color]} mt-0.5 text-xs`}></i>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="font-semibold text-white text-sm">{item.category || 'Improvement'}</div>
+                              <span className="text-xs px-2 py-0.5 rounded bg-yellow-500/30 text-yellow-300 border border-yellow-500/50">
+                                Improvement
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-300">{item.message || ''}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  
+                  {strengths.length === 0 && improvements.length === 0 && (
                     <div className="text-xs text-slate-400 text-center py-4">No strengths or improvements available</div>
                   )}
                 </div>
@@ -561,76 +599,102 @@ const Assessment = () => {
                   </div>
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-sm font-semibold text-white mb-3">Your Strong Skills</div>
-                    <div className="space-y-3">
-                      {strongSkills.slice(0, 3).map((skill, index) => {
-                        const colors = ['emerald', 'blue', 'orange']
-                        const color = colors[index % colors.length]
-                        const colorClasses = {
-                          emerald: 'bg-emerald-500/20 text-emerald-300',
-                          blue: 'bg-blue-500/20 text-blue-300',
-                          orange: 'bg-orange-500/20 text-orange-300',
-                        }
-                        const textColors = {
-                          emerald: 'text-emerald-400',
-                          blue: 'text-blue-400',
-                          orange: 'text-orange-400',
-                        }
-                        const abbreviation = skill.skill?.substring(0, 2).toUpperCase() || 'SK'
-                        return (
-                          <div key={index} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
-                            <div className={`w-10 h-10 rounded-full ${colorClasses[color]} flex items-center justify-center`}>
-                              <span className="font-bold text-xs">{abbreviation}</span>
+                    <div>
+                      <div className="text-sm font-semibold text-white mb-3">Your Strong Skills</div>
+                      <div className="space-y-3">
+                        {strongSkills.slice(0, 4).map((skill, index) => {
+                          // Determine color based on marketDemandLevel
+                          const getDemandColor = (level) => {
+                            switch (level) {
+                              case 'very_high': return { bg: 'bg-emerald-500/20', text: 'text-emerald-300', border: 'border-emerald-500/30' }
+                              case 'high': return { bg: 'bg-blue-500/20', text: 'text-blue-300', border: 'border-blue-500/30' }
+                              case 'medium': return { bg: 'bg-yellow-500/20', text: 'text-yellow-300', border: 'border-yellow-500/30' }
+                              case 'growing': return { bg: 'bg-purple-500/20', text: 'text-purple-300', border: 'border-purple-500/30' }
+                              case 'emerging': return { bg: 'bg-indigo-500/20', text: 'text-indigo-300', border: 'border-indigo-500/30' }
+                              default: return { bg: 'bg-slate-500/20', text: 'text-slate-300', border: 'border-slate-500/30' }
+                            }
+                          }
+                          const demandColor = getDemandColor(skill.marketDemandLevel)
+                          const demandLabel = skill.marketDemandLevel 
+                            ? skill.marketDemandLevel.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                            : 'Medium demand'
+                          const abbreviation = skill.skill?.substring(0, 2).toUpperCase() || 'SK'
+                          const categoryLabel = skill.skillCategory 
+                            ? skill.skillCategory.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                            : ''
+                          return (
+                            <div key={index} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                              <div className={`w-10 h-10 rounded-full ${demandColor.bg} flex items-center justify-center border ${demandColor.border}`}>
+                                <span className={`font-bold text-xs ${demandColor.text}`}>{abbreviation}</span>
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-semibold text-white text-sm">{skill.skill || 'Skill'}</div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className={`text-xs px-2 py-0.5 rounded ${demandColor.bg} ${demandColor.text} border ${demandColor.border}`}>
+                                    {demandLabel}
+                                  </span>
+                                  {categoryLabel && (
+                                    <span className="text-xs text-slate-400">{categoryLabel}</span>
+                                  )}
+                                </div>
+                                <div className={`text-xs ${demandColor.text} font-semibold mt-1`}>{skill.marketFit || 0}% Market fit</div>
+                              </div>
                             </div>
-                            <div className="flex-1">
-                              <div className="font-semibold text-white text-sm">{skill.skill || 'Skill'}</div>
-                              <div className="text-xs text-slate-400">{skill.demand || 'High demand skill'}</div>
-                              <div className={`text-xs ${textColors[color]} font-semibold mt-1`}>{skill.marketFit || 0}% Market fit</div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                      {strongSkills.length === 0 && (
-                        <div className="text-xs text-slate-400 text-center py-4">No strong skills identified</div>
-                      )}
+                          )
+                        })}
+                        {strongSkills.length === 0 && (
+                          <div className="text-xs text-slate-400 text-center py-4">No strong skills identified</div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-white mb-3">Recommended Skills to Add</div>
-                    <div className="space-y-3">
-                      {recommendedSkills.slice(0, 3).map((skill, index) => {
-                        const colors = ['purple', 'blue', 'emerald']
-                        const color = colors[index % colors.length]
-                        const colorClasses = {
-                          purple: 'bg-purple-500/20 text-purple-300',
-                          blue: 'bg-blue-500/20 text-blue-300',
-                          emerald: 'bg-emerald-500/20 text-emerald-300',
-                        }
-                        const textColors = {
-                          purple: 'text-purple-400',
-                          blue: 'text-blue-400',
-                          emerald: 'text-emerald-400',
-                        }
-                        const abbreviation = skill.skill?.substring(0, 2).toUpperCase() || 'SK'
-                        return (
-                          <div key={index} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
-                            <div className={`w-10 h-10 rounded-full ${colorClasses[color]} flex items-center justify-center`}>
-                              <span className="font-bold text-xs">{abbreviation}</span>
+                    <div>
+                      <div className="text-sm font-semibold text-white mb-3">Recommended Skills to Add</div>
+                      <div className="space-y-3">
+                        {recommendedSkills.map((skill, index) => {
+                          // Determine color based on marketDemandLevel
+                          const getDemandColor = (level) => {
+                            switch (level) {
+                              case 'very_high': return { bg: 'bg-emerald-500/20', text: 'text-emerald-300', border: 'border-emerald-500/30' }
+                              case 'high': return { bg: 'bg-blue-500/20', text: 'text-blue-300', border: 'border-blue-500/30' }
+                              case 'growing': return { bg: 'bg-purple-500/20', text: 'text-purple-300', border: 'border-purple-500/30' }
+                              case 'emerging': return { bg: 'bg-indigo-500/20', text: 'text-indigo-300', border: 'border-indigo-500/30' }
+                              case 'stable': return { bg: 'bg-slate-500/20', text: 'text-slate-300', border: 'border-slate-500/30' }
+                              default: return { bg: 'bg-slate-500/20', text: 'text-slate-300', border: 'border-slate-500/30' }
+                            }
+                          }
+                          const demandColor = getDemandColor(skill.marketDemandLevel)
+                          const demandLabel = skill.marketDemandLevel 
+                            ? skill.marketDemandLevel.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                            : 'Growing demand'
+                          const abbreviation = skill.skill?.substring(0, 2).toUpperCase() || 'SK'
+                          const categoryLabel = skill.skillCategory 
+                            ? skill.skillCategory.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                            : ''
+                          return (
+                            <div key={index} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                              <div className={`w-10 h-10 rounded-full ${demandColor.bg} flex items-center justify-center border ${demandColor.border}`}>
+                                <span className={`font-bold text-xs ${demandColor.text}`}>{abbreviation}</span>
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-semibold text-white text-sm">{skill.skill || 'Skill'}</div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className={`text-xs px-2 py-0.5 rounded ${demandColor.bg} ${demandColor.text} border ${demandColor.border}`}>
+                                    {demandLabel}
+                                  </span>
+                                  {categoryLabel && (
+                                    <span className="text-xs text-slate-400">{categoryLabel}</span>
+                                  )}
+                                </div>
+                                <div className={`text-xs ${demandColor.text} font-semibold mt-1`}>+{skill.salaryBoost || 0}% Salary boost</div>
+                              </div>
                             </div>
-                            <div className="flex-1">
-                              <div className="font-semibold text-white text-sm">{skill.skill || 'Skill'}</div>
-                              <div className="text-xs text-slate-400">{skill.demand || 'Growing demand'}</div>
-                              <div className={`text-xs ${textColors[color]} font-semibold mt-1`}>+{skill.salaryBoost || 0}% Salary boost</div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                      {recommendedSkills.length === 0 && (
-                        <div className="text-xs text-slate-400 text-center py-4">No recommended skills</div>
-                      )}
+                          )
+                        })}
+                        {recommendedSkills.length === 0 && (
+                          <div className="text-xs text-slate-400 text-center py-4">No recommended skills</div>
+                        )}
+                      </div>
                     </div>
-                  </div>
                 </div>
               </div>
             )}
