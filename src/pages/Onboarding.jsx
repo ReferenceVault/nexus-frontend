@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import Header from '../components/Header'
+import Footer from '../components/Footer'
+import SocialSidebar from '../components/SocialSidebar'
+import DashboardHeader from '../components/DashboardHeader'
 import { setOnboardingStatus, OnboardingStatus, completeOnboarding, getOnboardingStatus, checkOnboardingComplete } from '../utils/onboarding'
 import { useAuth } from '../hooks/useAuth'
 import { api } from '../utils/api'
@@ -773,56 +775,93 @@ const Onboarding = () => {
     { number: 3, title: 'Video Introduction', icon: 'fa-video' }
   ]
 
+  const userName = user?.firstName && user?.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : user?.email?.split('@')[0] || 'User'
+  const userEmail = user?.email || ''
+  const userInitial = (user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()
+
+  const handleLogout = async () => {
+    try {
+      await api.logout()
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      navigate('/')
+    }
+  }
+
   if (isLoadingProgress) {
     return (
-      <div className="bg-slate-50 text-neutral-900 min-h-screen flex flex-col">
-        <Header />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50/30 via-white to-indigo-50/20 flex flex-col">
+        <SocialSidebar position="right" />
+        <DashboardHeader
+          userName={userName}
+          userEmail={userEmail}
+          userInitial={userInitial}
+          onProfile={() => navigate('/user-dashboard')}
+          onLogout={handleLogout}
+          breadcrumbs={[
+            { label: 'Home', href: '/' },
+            { label: 'Onboarding' }
+          ]}
+          title=""
+          subtitle=""
+        />
         <main className="flex-1 flex items-center justify-center">
           <LoadingSpinner />
         </main>
+        <Footer />
       </div>
     )
   }
 
   return (
-    <div className="bg-slate-50 text-neutral-900 min-h-screen flex flex-col">
-      <Header />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50/30 via-white to-indigo-50/20 flex flex-col">
+      <SocialSidebar position="right" />
+      
+      <DashboardHeader
+        userName={userName}
+        userEmail={userEmail}
+        userInitial={userInitial}
+        onProfile={() => navigate('/user-dashboard')}
+        onLogout={handleLogout}
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Onboarding' }
+        ]}
+        title=""
+        subtitle=""
+      />
 
       <main className="flex-1">
-          <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 py-8 lg:py-12">
-            {/* Animated Background */}
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
-              <div className="absolute top-1/2 -left-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl" />
-            </div>
-
-            <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className="py-5 lg:py-6">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Progress Steps */}
-            <div className="mb-8">
+            <div className="mb-6">
               <div className="flex items-center justify-between mb-4">
                 {steps.map((step, index) => (
                   <React.Fragment key={step.number}>
                     <div className="flex flex-col items-center flex-1">
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
                           currentStep >= step.number
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-white/20 text-slate-300'
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                            : 'bg-neutral-100 text-neutral-400'
                         }`}
                       >
                         {currentStep > step.number ? (
-                          <i className="fa-solid fa-check text-white"></i>
+                          <i className="fa-solid fa-check text-white text-xs"></i>
                         ) : (
-                          <i className={`fa-solid ${step.icon}`}></i>
+                          <i className={`fa-solid ${step.icon} text-xs`}></i>
                         )}
                       </div>
-                      <span className="mt-2 text-xs font-medium text-slate-300 text-center">{step.title}</span>
+                      <span className="mt-1.5 text-xs font-medium text-neutral-600 text-center">{step.title}</span>
                     </div>
                     {index < steps.length - 1 && (
                       <div
-                        className={`flex-1 h-1 mx-2 transition-all ${
-                          currentStep > step.number ? 'bg-indigo-600' : 'bg-white/20'
+                        className={`flex-1 h-1 mx-2 transition-all rounded ${
+                          currentStep > step.number ? 'bg-gradient-to-r from-indigo-600 to-purple-600' : 'bg-neutral-200'
                         }`}
                       />
                     )}
@@ -832,175 +871,175 @@ const Onboarding = () => {
             </div>
 
             {/* Step Content */}
-            <div className="rounded-2xl border border-white/20 shadow-xl p-6 sm:p-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-6">
               {currentStep === 1 && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                    <h2 className="text-xl sm:text-2xl font-bold text-neutral-900 mb-1">
                       Tell us about yourself so we can match you with the{' '}
-                      <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                      <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                         right opportunities.
                       </span>
                     </h2>
-                    <p className="text-sm text-slate-300">Basic Information</p>
+                    <p className="text-xs text-neutral-600">Basic Information</p>
                   </div>
 
                   <ErrorMessage error={saveError} onDismiss={() => setSaveError(null)} />
 
-                <div className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-slate-300">Legal First Name *</label>
+                <div className="space-y-3">
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-neutral-700">Legal First Name *</label>
                       <input
                         name="firstName"
                         value={formData.firstName}
                         onChange={handleInputChange}
-                        className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                          errors.firstName ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                        className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                          errors.firstName ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                         }`}
                         placeholder="John"
                         required
                       />
                       {errors.firstName && (
-                        <p className="text-xs text-red-400">{errors.firstName}</p>
+                        <p className="text-xs text-red-500">{errors.firstName}</p>
                       )}
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-slate-300">Legal Last Name *</label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-neutral-700">Legal Last Name *</label>
                       <input
                         name="lastName"
                         value={formData.lastName}
                         onChange={handleInputChange}
-                        className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                          errors.lastName ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                        className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                          errors.lastName ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                         }`}
                         placeholder="Doe"
                         required
                       />
                       {errors.lastName && (
-                        <p className="text-xs text-red-400">{errors.lastName}</p>
+                        <p className="text-xs text-red-500">{errors.lastName}</p>
                       )}
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-slate-300">Email *</label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-neutral-700">Email *</label>
                       <input
                         type="email"
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
-                        className="w-full rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         placeholder="john.doe@example.com"
                         required
                       />
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-slate-300">Phone Number *</label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-neutral-700">Phone Number *</label>
                       <input
                         type="tel"
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                          errors.phone ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                        className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                          errors.phone ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                         }`}
                         placeholder="+1 (555) 123-4567"
                         required
                       />
                       {errors.phone && (
-                        <p className="text-xs text-red-400">{errors.phone}</p>
+                        <p className="text-xs text-red-500">{errors.phone}</p>
                       )}
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-white/20">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-white mb-3">
-                      <i className="fa-solid fa-location-dot text-indigo-300"></i>
+                  <div className="pt-3 border-t border-neutral-200">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 mb-2">
+                      <i className="fa-solid fa-location-dot text-indigo-600"></i>
                       <span>Address Information</span>
                     </div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="md:col-span-2 flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-slate-300">Street Address *</label>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div className="md:col-span-2 flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-neutral-700">Street Address *</label>
                         <input
                           name="streetAddress"
                           value={formData.streetAddress}
                           onChange={handleInputChange}
-                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                            errors.streetAddress ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            errors.streetAddress ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                           }`}
                           placeholder="123 Main Street"
                           required
                         />
                         {errors.streetAddress && (
-                          <p className="text-xs text-red-400">{errors.streetAddress}</p>
+                          <p className="text-xs text-red-500">{errors.streetAddress}</p>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-slate-300">City *</label>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-neutral-700">City *</label>
                         <input
                           name="city"
                           value={formData.city}
                           onChange={handleInputChange}
-                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                            errors.city ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            errors.city ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                           }`}
                           placeholder="San Francisco"
                           required
                         />
                         {errors.city && (
-                          <p className="text-xs text-red-400">{errors.city}</p>
+                          <p className="text-xs text-red-500">{errors.city}</p>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-slate-300">State/Province *</label>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-neutral-700">State/Province *</label>
                         <input
                           name="state"
                           value={formData.state}
                           onChange={handleInputChange}
-                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                            errors.state ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            errors.state ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                           }`}
                           placeholder="California"
                           required
                         />
                         {errors.state && (
-                          <p className="text-xs text-red-400">{errors.state}</p>
+                          <p className="text-xs text-red-500">{errors.state}</p>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-slate-300">ZIP/Postal Code *</label>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-neutral-700">ZIP/Postal Code *</label>
                         <input
                           name="zipCode"
                           value={formData.zipCode}
                           onChange={handleInputChange}
-                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                            errors.zipCode ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            errors.zipCode ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                           }`}
                           placeholder="94102"
                           required
                         />
                         {errors.zipCode && (
-                          <p className="text-xs text-red-400">{errors.zipCode}</p>
+                          <p className="text-xs text-red-500">{errors.zipCode}</p>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-slate-300">Country *</label>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-neutral-700">Country *</label>
                         <select
                           name="country"
                           value={formData.country}
                           onChange={handleInputChange}
-                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                            errors.country ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            errors.country ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                           }`}
                           required
                         >
-                          <option value="" className="bg-slate-900 text-white">Select country</option>
-                          <option value="US" className="bg-slate-900 text-white">United States</option>
-                          <option value="CA" className="bg-slate-900 text-white">Canada</option>
-                          <option value="UK" className="bg-slate-900 text-white">United Kingdom</option>
-                          <option value="AU" className="bg-slate-900 text-white">Australia</option>
+                          <option value="">Select country</option>
+                          <option value="US">United States</option>
+                          <option value="CA">Canada</option>
+                          <option value="UK">United Kingdom</option>
+                          <option value="AU">Australia</option>
                         </select>
                         {errors.country && (
-                          <p className="text-xs text-red-400">{errors.country}</p>
+                          <p className="text-xs text-red-500">{errors.country}</p>
                         )}
                       </div>
                     </div>
@@ -1010,16 +1049,16 @@ const Onboarding = () => {
             )}
 
             {currentStep === 2 && (
-              <div className="space-y-6">
+              <div className="space-y-3">
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Upload Your Resume</h2>
-                  <p className="text-sm text-slate-300">Upload your resume in PDF or DOCX format</p>
+                  <h2 className="text-lg sm:text-xl font-bold text-neutral-900 mb-0.5">Upload Your Resume</h2>
+                  <p className="text-xs text-neutral-600">Upload your resume in PDF or DOCX format</p>
                 </div>
 
-                <div className="border-2 border-dashed border-white/30 rounded-xl p-8 text-center hover:border-indigo-400 transition bg-white/5">
-                  <i className="fa-solid fa-file-arrow-up text-4xl text-slate-300 mb-4"></i>
-                  <p className="text-sm font-semibold text-white mb-2">Drop your resume here or click to browse</p>
-                  <p className="text-xs text-slate-400 mb-4">PDF, DOCX up to 5MB</p>
+                <div className="border-2 border-dashed border-neutral-300 rounded-lg p-4 text-center hover:border-indigo-400 transition bg-neutral-50">
+                  <i className="fa-solid fa-file-arrow-up text-lg text-neutral-400 mb-2"></i>
+                  <p className="text-xs font-semibold text-neutral-900 mb-0.5">Drop your resume here or click to browse</p>
+                  <p className="text-[10px] text-neutral-500 mb-2">PDF, DOCX up to 5MB</p>
                   <input
                     type="file"
                     accept=".pdf,.doc,.docx"
@@ -1029,36 +1068,36 @@ const Onboarding = () => {
                   />
                   <label
                     htmlFor="resume-upload"
-                    className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 cursor-pointer transition"
+                    className="inline-block px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-xs font-semibold hover:from-indigo-700 hover:to-purple-700 cursor-pointer transition shadow-md"
                   >
                     {uploadedResumeId ? 'Change File' : 'Choose File'}
                   </label>
                   {(formData.resumeFile || uploadedResumeInfo) && (
-                    <div className="mt-4 p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg">
-                      <p className="text-sm text-emerald-300 flex items-center justify-center mb-2">
-                        <i className="fa-solid fa-check-circle mr-2"></i>
+                    <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                      <p className="text-xs text-emerald-700 flex items-center justify-center mb-1.5">
+                        <i className="fa-solid fa-check-circle mr-1.5 text-[10px]"></i>
                         {formData.resumeFile ? formData.resumeFile.name : uploadedResumeInfo?.fileName || 'Resume uploaded'}
                       </p>
                       {uploadedResumeInfo && !formData.resumeFile && uploadedResumeInfo.presignedUrl && (
-                        <div className="mt-2">
+                        <div className="mt-1.5">
                           <iframe
                             src={uploadedResumeInfo.presignedUrl}
-                            className="w-full h-64 rounded-lg border border-emerald-500/30"
+                            className="w-full h-48 rounded-lg border border-emerald-200"
                             title="Resume Preview"
                           />
                           <a
                             href={uploadedResumeInfo.presignedUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-emerald-300 hover:text-emerald-200 mt-2 inline-block"
+                            className="text-[10px] text-emerald-600 hover:text-emerald-700 mt-1.5 inline-block"
                           >
-                            <i className="fa-solid fa-download mr-1"></i>
+                            <i className="fa-solid fa-download mr-1 text-[10px]"></i>
                             Download Resume
                           </a>
                         </div>
                       )}
                       {uploadedResumeInfo && !formData.resumeFile && (
-                        <p className="text-xs text-emerald-400/80 mt-2 text-center">
+                        <p className="text-[10px] text-emerald-600 mt-1.5 text-center">
                           Resume already uploaded. You can upload a new one to replace it.
                         </p>
                       )}
@@ -1072,66 +1111,66 @@ const Onboarding = () => {
             )}
 
             {currentStep === 3 && (
-              <div className="space-y-6">
+              <div className="space-y-3">
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Video Introduction</h2>
-                  <p className="text-sm text-slate-300">Record or upload a short video introducing yourself</p>
+                  <h2 className="text-lg sm:text-xl font-bold text-neutral-900 mb-0.5">Video Introduction</h2>
+                  <p className="text-xs text-neutral-600">Record or upload a short video introducing yourself</p>
                 </div>
 
                 {videoUploadError && (
                   <ErrorMessage message={videoUploadError} />
                 )}
 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid md:grid-cols-2 gap-3">
                   {/* Record Video Section */}
-                  <div className="border-2 border-dashed border-white/30 rounded-xl p-6 text-center hover:border-indigo-400 transition bg-white/5">
-                    <i className="fa-solid fa-video text-3xl text-slate-300 mb-3"></i>
-                    <h3 className="text-sm font-semibold text-white mb-2">Record Video</h3>
-                    <p className="text-xs text-slate-400 mb-4">Record directly from your camera</p>
+                  <div className="border-2 border-dashed border-neutral-300 rounded-lg p-3 text-center hover:border-indigo-400 transition bg-neutral-50">
+                    <i className="fa-solid fa-video text-lg text-neutral-400 mb-1.5"></i>
+                    <h3 className="text-xs font-semibold text-neutral-900 mb-0.5">Record Video</h3>
+                    <p className="text-[10px] text-neutral-500 mb-2">Record directly from your camera</p>
                     
                     {!isRecording && !recordedVideo && (
                       <button
                         onClick={startRecording}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 cursor-pointer transition"
+                        className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-xs font-semibold hover:from-indigo-700 hover:to-purple-700 cursor-pointer transition shadow-md"
                       >
-                        <i className="fa-solid fa-circle mr-2"></i>
+                        <i className="fa-solid fa-circle mr-1.5 text-[10px]"></i>
                         Start Recording
                       </button>
                     )}
 
                     {isRecording && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-center gap-2 text-red-400">
-                          <i className="fa-solid fa-circle animate-pulse"></i>
-                          <span className="text-sm font-semibold">Recording...</span>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-center gap-1.5 text-red-600">
+                          <i className="fa-solid fa-circle animate-pulse text-[10px]"></i>
+                          <span className="text-xs font-semibold">Recording...</span>
                         </div>
                         <button
                           onClick={stopRecording}
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 cursor-pointer transition"
+                          className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 cursor-pointer transition shadow-md"
                         >
-                          <i className="fa-solid fa-stop mr-2"></i>
+                          <i className="fa-solid fa-stop mr-1.5 text-[10px]"></i>
                           Stop Recording
                         </button>
                       </div>
                     )}
 
                     {recordedVideo && !isRecording && (
-                      <div className="space-y-3">
-                        <p className="text-sm text-indigo-300">
-                          <i className="fa-solid fa-check-circle mr-2"></i>
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-indigo-600">
+                          <i className="fa-solid fa-check-circle mr-1.5 text-[10px]"></i>
                           Video recorded ({Math.round(recordedVideo.size / 1024 / 1024 * 100) / 100} MB)
                         </p>
                         <video
                           src={URL.createObjectURL(recordedVideo)}
                           controls
-                          className="w-full max-h-48 rounded-lg"
+                          className="w-full max-h-40 rounded-lg"
                         />
                         <button
                           onClick={() => {
                             setRecordedVideo(null)
                             setFormData(prev => ({ ...prev, videoFile: null }))
                           }}
-                          className="px-3 py-1 bg-slate-600 text-white rounded text-xs hover:bg-slate-700"
+                          className="px-2 py-1 bg-neutral-600 text-white rounded text-[10px] hover:bg-neutral-700"
                         >
                           Record Again
                         </button>
@@ -1140,10 +1179,10 @@ const Onboarding = () => {
                   </div>
 
                   {/* Upload Video Section */}
-                  <div className="border-2 border-dashed border-white/30 rounded-xl p-6 text-center hover:border-indigo-400 transition bg-white/5">
-                    <i className="fa-solid fa-file-arrow-up text-3xl text-slate-300 mb-3"></i>
-                    <h3 className="text-sm font-semibold text-white mb-2">Upload Video</h3>
-                    <p className="text-xs text-slate-400 mb-4">MP4, MOV, WebM up to 50MB</p>
+                  <div className="border-2 border-dashed border-neutral-300 rounded-lg p-3 text-center hover:border-indigo-400 transition bg-neutral-50">
+                    <i className="fa-solid fa-file-arrow-up text-lg text-neutral-400 mb-1.5"></i>
+                    <h3 className="text-xs font-semibold text-neutral-900 mb-0.5">Upload Video</h3>
+                    <p className="text-[10px] text-neutral-500 mb-2">MP4, MOV, WebM up to 50MB</p>
                   <input
                     type="file"
                       accept="video/mp4,video/mov,video/webm"
@@ -1153,54 +1192,54 @@ const Onboarding = () => {
                   />
                   <label
                     htmlFor="video-upload"
-                    className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 cursor-pointer transition"
+                    className="inline-block px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-xs font-semibold hover:from-indigo-700 hover:to-purple-700 cursor-pointer transition shadow-md"
                   >
                     {uploadedVideoInfo ? 'Change Video File' : 'Choose Video File'}
                   </label>
                     {(formData.videoFile || uploadedVideoInfo) && !recordedVideo && (
-                      <div className="mt-4 p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg">
+                      <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
                         {formData.videoFile ? (
-                          <div className="space-y-2">
-                            <p className="text-sm text-emerald-300 flex items-center justify-center">
-                              <i className="fa-solid fa-check-circle mr-2"></i>
+                          <div className="space-y-1.5">
+                            <p className="text-xs text-emerald-700 flex items-center justify-center">
+                              <i className="fa-solid fa-check-circle mr-1.5 text-[10px]"></i>
                               {formData.videoFile.name}
                             </p>
-                            <p className="text-xs text-slate-400 text-center">
+                            <p className="text-[10px] text-neutral-500 text-center">
                               {(formData.videoFile.size / 1024 / 1024).toFixed(2)} MB
                             </p>
                             {formData.videoFile.type.startsWith('video/') && (
                               <video
                                 src={URL.createObjectURL(formData.videoFile)}
                                 controls
-                                className="w-full max-h-48 rounded-lg mt-2"
+                                className="w-full max-h-40 rounded-lg mt-1.5"
                               />
                             )}
                           </div>
                         ) : uploadedVideoInfo ? (
                           <div>
-                            <p className="text-sm text-emerald-300 flex items-center justify-center mb-2">
-                              <i className="fa-solid fa-check-circle mr-2"></i>
+                            <p className="text-xs text-emerald-700 flex items-center justify-center mb-1.5">
+                              <i className="fa-solid fa-check-circle mr-1.5 text-[10px]"></i>
                               {uploadedVideoInfo.fileName || 'Video uploaded'}
                             </p>
                             {uploadedVideoInfo.presignedUrl && (
-                              <div className="mt-2">
+                              <div className="mt-1.5">
                                 <video
                                   src={uploadedVideoInfo.presignedUrl}
                                   controls
-                                  className="w-full max-h-48 rounded-lg"
+                                  className="w-full max-h-40 rounded-lg"
                                 />
                                 <a
                                   href={uploadedVideoInfo.presignedUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-xs text-emerald-300 hover:text-emerald-200 mt-2 inline-block"
+                                  className="text-[10px] text-emerald-600 hover:text-emerald-700 mt-1.5 inline-block"
                                 >
-                                  <i className="fa-solid fa-download mr-1"></i>
+                                  <i className="fa-solid fa-download mr-1 text-[10px]"></i>
                                   Download Video
                                 </a>
                               </div>
                             )}
-                            <p className="text-xs text-emerald-400/80 mt-2 text-center">
+                            <p className="text-[10px] text-emerald-600 mt-1.5 text-center">
                               Video already uploaded. You can upload a new one to replace it.
                             </p>
                           </div>
@@ -1212,42 +1251,42 @@ const Onboarding = () => {
               </div>
             )}
 
-            {/* Navigation Buttons */}
-            <div className="flex items-center justify-between mt-8 pt-6 border-t border-white/20">
+            {/* Navigation Buttons - Sticky */}
+            <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-neutral-200 -mx-6 px-6 py-3 mt-6 flex items-center justify-between z-10 shadow-lg">
               <button
                 onClick={handleBack}
                 disabled={currentStep === 1}
-                className={`px-4 py-2 rounded-lg border border-white/30 text-white text-sm font-semibold transition ${
+                className={`px-4 py-2 rounded-lg border border-neutral-300 text-neutral-700 text-sm font-semibold transition ${
                   currentStep === 1
                     ? 'opacity-50 cursor-not-allowed'
-                    : 'hover:bg-white/10'
+                    : 'hover:bg-neutral-50'
                 }`}
               >
-                <i className="fa-solid fa-arrow-left mr-2"></i>
+                <i className="fa-solid fa-arrow-left mr-2 text-xs"></i>
                 Back
               </button>
               {currentStep < 3 ? (
                 <button
                   onClick={handleNext}
                   disabled={isSaving || isUploadingResume}
-                  className={`px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition ${
+                  className={`px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition shadow-md ${
                     isSaving || isUploadingResume ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
                   {isSaving ? (
                     <>
-                      <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                      <i className="fa-solid fa-spinner fa-spin mr-2 text-xs"></i>
                       Saving...
                     </>
                   ) : isUploadingResume ? (
                     <>
-                      <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                      <i className="fa-solid fa-spinner fa-spin mr-2 text-xs"></i>
                       Uploading...
                     </>
                   ) : (
                     <>
                   Next
-                  <i className="fa-solid fa-arrow-right ml-2"></i>
+                  <i className="fa-solid fa-arrow-right ml-2 text-xs"></i>
                     </>
                   )}
                 </button>
@@ -1255,19 +1294,19 @@ const Onboarding = () => {
                 <button
                   onClick={handleSubmit}
                   disabled={isUploadingVideo}
-                  className={`px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition ${
+                  className={`px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition shadow-md ${
                     isUploadingVideo ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
                   {isUploadingVideo ? (
                     <>
-                      <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                      <i className="fa-solid fa-spinner fa-spin mr-2 text-xs"></i>
                       Uploading Video...
                     </>
                   ) : (
                     <>
                   Complete Setup
-                  <i className="fa-solid fa-check ml-2"></i>
+                  <i className="fa-solid fa-check ml-2 text-xs"></i>
                     </>
                   )}
                 </button>
@@ -1277,6 +1316,8 @@ const Onboarding = () => {
           </div>
         </section>
       </main>
+
+      <Footer />
     </div>
   )
 }

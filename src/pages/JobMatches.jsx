@@ -1,10 +1,18 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Header from '../components/Header'
+import Footer from '../components/Footer'
+import SocialSidebar from '../components/SocialSidebar'
+import DashboardHeader from '../components/DashboardHeader'
+import DashboardSidebar from '../components/DashboardSidebar'
+import { useAuth } from '../hooks/useAuth'
+import { api } from '../utils/api'
 
 const JobMatches = () => {
   const navigate = useNavigate()
+  const { user, logout, isAuthenticated, accessToken } = useAuth()
   const [savedJobs, setSavedJobs] = useState(new Set(['react-developer-healthtech']))
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
     location: '',
     salaryMin: '',
@@ -98,6 +106,23 @@ const JobMatches = () => {
     }
   ]
 
+  const userName = user?.firstName && user?.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : user?.email?.split('@')[0] || 'User'
+  const userEmail = user?.email || ''
+  const userInitial = (user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()
+
+  const handleLogout = async () => {
+    try {
+      await api.logout()
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      logout()
+      navigate('/')
+    }
+  }
+
   const toggleSaveJob = (jobId) => {
     setSavedJobs(prev => {
       const newSet = new Set(prev)
@@ -136,474 +161,280 @@ const JobMatches = () => {
   const getWorkTypeColor = (workType) => {
     switch (workType) {
       case 'Remote OK':
-        return 'bg-green-500/20 text-green-300 border border-green-500/30'
+        return 'bg-green-100 text-green-700 border border-green-300'
       case 'Hybrid':
-        return 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+        return 'bg-orange-100 text-orange-700 border border-orange-300'
       default:
-        return 'bg-slate-500/20 text-slate-300 border border-slate-500/30'
+        return 'bg-neutral-100 text-neutral-700 border border-neutral-300'
     }
   }
 
   const getMatchScoreColor = (score) => {
-    if (score >= 90) return 'bg-success'
-    if (score >= 80) return 'bg-secondary'
+    if (score >= 90) return 'bg-green-500'
+    if (score >= 80) return 'bg-indigo-500'
     if (score >= 70) return 'bg-purple-600'
     return 'bg-orange-500'
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white min-h-screen flex flex-col">
-      <Header userMode activeNav="Job Matches" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50/30 via-white to-indigo-50/20 flex flex-col">
+      <SocialSidebar position="right" />
+      
+      <DashboardHeader
+        userName={userName}
+        userEmail={userEmail}
+        userInitial={userInitial}
+        onProfile={() => navigate('/user-dashboard')}
+        onLogout={handleLogout}
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Job Matches' }
+        ]}
+        title=""
+        subtitle=""
+      />
 
-      <main className="flex-1">
-        <section className="relative overflow-hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
-          {/* Animated Background */}
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
-            <div className="absolute top-1/2 -left-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl" />
-          </div>
+      <div className="flex flex-1">
+        <DashboardSidebar
+          title="Workspace"
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          activeView="job-matches"
+          menuItems={[
+            {
+              id: 'overview',
+              label: 'Overview',
+              icon: 'fa-solid fa-grid-2',
+              onClick: () => navigate('/user-dashboard')
+            },
+            {
+              id: 'resumes',
+              label: 'My Resumes',
+              icon: 'fa-solid fa-file-pdf',
+              onClick: () => navigate('/user-dashboard')
+            },
+            {
+              id: 'videos',
+              label: 'Video Introductions',
+              icon: 'fa-solid fa-video',
+              onClick: () => navigate('/user-dashboard')
+            },
+            {
+              id: 'assessments',
+              label: 'Assessments',
+              icon: 'fa-solid fa-clipboard-check',
+              onClick: () => navigate('/assessments')
+            },
+            {
+              id: 'job-matches',
+              label: 'Job Matches',
+              icon: 'fa-solid fa-briefcase',
+              onClick: () => {}
+            }
+          ]}
+          quickFilters={[
+            { label: 'Upload Resume', icon: 'fa-solid fa-upload', onClick: () => navigate('/onboarding?step=2') },
+            { label: 'Upload Video', icon: 'fa-solid fa-video', onClick: () => navigate('/onboarding?step=3') },
+            { label: 'Take Assessment', icon: 'fa-solid fa-clipboard-question', onClick: () => navigate('/assessments') },
+            { label: 'Browse Jobs', icon: 'fa-solid fa-search', onClick: () => {} }
+          ]}
+        />
 
-          <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-5">
-            {/* Sidebar Filters */}
-            <aside className="bg-white/10 backdrop-blur-sm border border-white/20 p-5 overflow-y-auto rounded-xl lg:col-span-3">
-              {/* Match Insights */}
-              <div className="mb-6">
-                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg p-5 text-white mb-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="text-lg font-bold">Your Match Score</h3>
-                      <p className="text-indigo-100 text-xs">Based on your profile</p>
-                    </div>
-                    <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
-                      <span className="text-xl font-bold">92</span>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs">
-                      <span>Skills Match</span>
-                      <span>95%</span>
-                    </div>
-                    <div className="w-full bg-white/20 rounded-full h-1.5">
-                      <div className="bg-white h-1.5 rounded-full" style={{ width: '95%' }}></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="mb-6">
-                <h3 className="text-base font-semibold text-white mb-3">Quick Actions</h3>
-                <div className="space-y-2.5">
-                  <button className="w-full bg-indigo-600 text-white py-2 px-3 rounded-md font-medium hover:bg-indigo-700 transition flex items-center text-sm">
-                    <i className="fa-solid fa-plus mr-1.5 text-xs"></i>
-                    Save New Search
-                  </button>
-                  <button className="w-full border border-white/20 bg-white/5 text-white py-2 px-3 rounded-md font-medium hover:bg-white/10 transition flex items-center text-sm">
-                    <i className="fa-solid fa-bell mr-1.5 text-xs"></i>
-                    Job Alerts
-                  </button>
-                  <button className="w-full border border-white/20 bg-white/5 text-white py-2 px-3 rounded-md font-medium hover:bg-white/10 transition flex items-center text-sm">
-                    <i className="fa-solid fa-filter mr-1.5 text-xs"></i>
-                    Advanced Filters
-                  </button>
-                </div>
-              </div>
-
-              {/* Saved Searches */}
-              <div className="mb-6">
-                <h3 className="text-base font-semibold text-white mb-3">Saved Searches</h3>
-                <div className="space-y-2.5">
-                  <div className="bg-indigo-500/20 border border-indigo-500/30 rounded-md p-2.5">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-medium text-white text-sm">Senior Frontend Developer</span>
-                      <i className="fa-solid fa-star text-indigo-300 text-xs"></i>
-                    </div>
-                    <div className="text-xs text-slate-300">Remote • $80k-$120k • 23 new matches</div>
-                  </div>
-                  <div className="bg-white/5 border border-white/10 rounded-md p-2.5">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-medium text-white text-sm">Full Stack Engineer</span>
-                      <i className="fa-regular fa-star text-slate-400 text-xs"></i>
-                    </div>
-                    <div className="text-xs text-slate-300">San Francisco • $90k-$140k • 8 new matches</div>
-                  </div>
-                  <div className="bg-white/5 border border-white/10 rounded-md p-2.5">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-medium text-white text-sm">React Developer</span>
-                      <i className="fa-regular fa-star text-slate-400 text-xs"></i>
-                    </div>
-                    <div className="text-xs text-slate-300">NYC • Remote OK • $70k-$110k • 15 new matches</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Filters */}
-              <div className="mb-6">
-                <h3 className="text-base font-semibold text-white mb-3">Filters</h3>
-                
-                {/* Location Filter */}
-                <div className="mb-5">
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Location</label>
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      className="w-full border border-white/20 bg-white/10 backdrop-blur-sm rounded-md px-2.5 py-1.5 text-xs text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400" 
-                      placeholder="City, state, or country"
-                      value={filters.location}
-                      onChange={(e) => handleFilterChange('location', e.target.value)}
-                    />
-                    <i className="fa-solid fa-map-marker-alt absolute right-2.5 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
-                  </div>
-                  <div className="mt-1.5 space-y-1.5">
-                    <label className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-white/20 bg-white/10 text-indigo-600 focus:ring-indigo-400" 
-                        checked={filters.remote}
-                        onChange={(e) => handleFilterChange('remote', e.target.checked)}
-                      />
-                      <span className="ml-1.5 text-xs text-slate-300">Remote OK</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-white/20 bg-white/10 text-indigo-600 focus:ring-indigo-400"
-                        checked={filters.hybrid}
-                        onChange={(e) => handleFilterChange('hybrid', e.target.checked)}
-                      />
-                      <span className="ml-1.5 text-xs text-slate-300">Hybrid</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-white/20 bg-white/10 text-indigo-600 focus:ring-indigo-400"
-                        checked={filters.onsite}
-                        onChange={(e) => handleFilterChange('onsite', e.target.checked)}
-                      />
-                      <span className="ml-1.5 text-xs text-slate-300">On-site only</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Salary Range */}
-                <div className="mb-5">
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Salary Range</label>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <input 
-                      type="number" 
-                      className="border border-white/20 bg-white/10 backdrop-blur-sm rounded-md px-2.5 py-1.5 text-xs text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400" 
-                      placeholder="Min"
-                      value={filters.salaryMin}
-                      onChange={(e) => handleFilterChange('salaryMin', e.target.value)}
-                    />
-                    <input 
-                      type="number" 
-                      className="border border-white/20 bg-white/10 backdrop-blur-sm rounded-md px-2.5 py-1.5 text-xs text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400" 
-                      placeholder="Max"
-                      value={filters.salaryMax}
-                      onChange={(e) => handleFilterChange('salaryMax', e.target.value)}
-                    />
-                  </div>
-                  <div className="mt-1.5">
-                    <input 
-                      type="range" 
-                      className="w-full h-1.5 bg-white/20 rounded-md appearance-none cursor-pointer slider" 
-                      min="0" 
-                      max="200000" 
-                      value={filters.salaryRange || 80000}
-                      onChange={(e) => handleFilterChange('salaryRange', e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* Experience Level */}
-                <div className="mb-5">
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Experience Level</label>
-                  <div className="space-y-1.5">
-                    <label className="flex items-center">
-                      <input 
-                        type="radio" 
-                        name="experience" 
-                        className="text-indigo-600 focus:ring-indigo-400 border-white/20"
-                        checked={filters.experience === 'entry'}
-                        onChange={() => handleFilterChange('experience', 'entry')}
-                      />
-                      <span className="ml-1.5 text-xs text-slate-300">Entry Level (0-2 years)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input 
-                        type="radio" 
-                        name="experience" 
-                        className="text-indigo-600 focus:ring-indigo-400 border-white/20"
-                        checked={filters.experience === 'mid'}
-                        onChange={() => handleFilterChange('experience', 'mid')}
-                      />
-                      <span className="ml-1.5 text-xs text-slate-300">Mid Level (3-5 years)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input 
-                        type="radio" 
-                        name="experience" 
-                        className="text-indigo-600 focus:ring-indigo-400 border-white/20"
-                        checked={filters.experience === 'senior'}
-                        onChange={() => handleFilterChange('experience', 'senior')}
-                      />
-                      <span className="ml-1.5 text-xs text-slate-300">Senior Level (6+ years)</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Skills */}
-                <div className="mb-5">
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Skills</label>
-                  <div className="relative mb-2.5">
-                    <input 
-                      type="text" 
-                      className="w-full border border-white/20 bg-white/10 backdrop-blur-sm rounded-md px-2.5 py-1.5 text-xs text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400" 
-                      placeholder="Add skills..."
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleSkillAdd(e.target.value)
-                          e.target.value = ''
-                        }
-                      }}
-                    />
-                    <i className="fa-solid fa-plus absolute right-2.5 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {filters.skills.map((skill, index) => (
-                      <span key={index} className="bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-xs flex items-center">
-                        {skill}
-                        <i 
-                          className="fa-solid fa-times ml-1.5 cursor-pointer text-xs"
-                          onClick={() => handleSkillRemove(skill)}
-                        ></i>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Company Size */}
-                <div className="mb-5">
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Company Size</label>
-                  <div className="space-y-1.5">
-                    <label className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-white/20 bg-white/10 text-indigo-600 focus:ring-indigo-400"
-                        checked={filters.companySize.includes('startup')}
-                        onChange={(e) => {
-                          const newSize = e.target.checked 
-                            ? [...filters.companySize, 'startup']
-                            : filters.companySize.filter(size => size !== 'startup')
-                          handleFilterChange('companySize', newSize)
-                        }}
-                      />
-                      <span className="ml-1.5 text-xs text-slate-300">Startup (1-50)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-white/20 bg-white/10 text-indigo-600 focus:ring-indigo-400"
-                        checked={filters.companySize.includes('medium')}
-                        onChange={(e) => {
-                          const newSize = e.target.checked 
-                            ? [...filters.companySize, 'medium']
-                            : filters.companySize.filter(size => size !== 'medium')
-                          handleFilterChange('companySize', newSize)
-                        }}
-                      />
-                      <span className="ml-1.5 text-xs text-slate-300">Medium (51-500)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-white/20 bg-white/10 text-indigo-600 focus:ring-indigo-400"
-                        checked={filters.companySize.includes('large')}
-                        onChange={(e) => {
-                          const newSize = e.target.checked 
-                            ? [...filters.companySize, 'large']
-                            : filters.companySize.filter(size => size !== 'large')
-                          handleFilterChange('companySize', newSize)
-                        }}
-                      />
-                      <span className="ml-1.5 text-xs text-slate-300">Large (500+)</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Filter Actions */}
-              <div className="space-y-2.5">
-                <button className="w-full bg-indigo-600 text-white py-2 px-3 rounded-md font-medium hover:bg-indigo-700 transition text-sm">
-                  Apply Filters
-                </button>
-                <button 
-                  className="w-full text-slate-300 py-2 px-3 rounded-md font-medium hover:text-white transition border border-white/20 bg-white/5 hover:bg-white/10 text-sm"
-                  onClick={() => setFilters({
-                    location: '',
-                    salaryMin: '',
-                    salaryMax: '',
-                    experience: 'mid',
-                    skills: [],
-                    companySize: [],
-                    remote: false,
-                    hybrid: false,
-                    onsite: false
-                  })}
-                >
-                  Clear All Filters
-                </button>
-              </div>
-            </aside>
-
-            {/* Main Content Area */}
-            <main className="lg:col-span-6 space-y-5">
-              {/* Header Section */}
-              <div className="mb-5">
-                <div className="flex items-center justify-between mb-3">
+        <main className="flex-1 pr-11 lg:pr-14">
+          <section className="px-8 py-4">
+            <div className="max-w-7xl mx-auto">
+              {/* Header */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
                   <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-white mb-1.5">Job Matches</h1>
-                    <p className="text-xs text-slate-300">Personalized opportunities based on your profile and preferences</p>
+                    <h1 className="text-xl md:text-2xl font-bold text-neutral-900 mb-0.5">Job Matches</h1>
+                    <p className="text-xs text-neutral-600">Personalized opportunities based on your profile and preferences</p>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center bg-white/10 backdrop-blur-sm rounded-md border border-white/20 px-3 py-1.5">
-                      <i className="fa-solid fa-sort mr-1.5 text-slate-400 text-xs"></i>
-                      <select className="border-none bg-transparent focus:ring-0 text-xs text-white">
-                        <option className="bg-slate-900 text-white">Best Match</option>
-                        <option className="bg-slate-900 text-white">Newest First</option>
-                        <option className="bg-slate-900 text-white">Highest Salary</option>
-                        <option className="bg-slate-900 text-white">Company Rating</option>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setShowFilters(!showFilters)}
+                      className="px-3 py-1.5 rounded-lg border border-indigo-200 bg-white text-neutral-700 text-xs font-semibold hover:bg-indigo-50 transition flex items-center gap-1.5"
+                    >
+                      <i className="fa-solid fa-filter text-xs"></i>
+                      Filters
+                    </button>
+                    <div className="flex items-center bg-white rounded-lg border border-indigo-200 px-2 py-1.5">
+                      <i className="fa-solid fa-sort mr-1.5 text-neutral-400 text-xs"></i>
+                      <select className="border-none bg-transparent focus:ring-0 text-xs text-neutral-700">
+                        <option>Best Match</option>
+                        <option>Newest First</option>
+                        <option>Highest Salary</option>
+                        <option>Company Rating</option>
                       </select>
                     </div>
-                    <div className="flex items-center space-x-1.5">
-                      <button className="p-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md hover:bg-white/20 transition">
-                        <i className="fa-solid fa-th-large text-slate-300 text-xs"></i>
-                      </button>
-                      <button className="p-1.5 bg-indigo-600 text-white border border-indigo-600 rounded-md">
-                        <i className="fa-solid fa-list text-white text-xs"></i>
-                      </button>
-                    </div>
                   </div>
                 </div>
 
-                {/* Stats Bar */}
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-3 mb-3">
-                  <div className="grid grid-cols-4 gap-3">
-                    <div className="text-center">
-                      <div className="text-xl font-bold text-indigo-300 mb-0.5">247</div>
-                      <div className="text-xs text-slate-400">Total Matches</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xl font-bold text-purple-300 mb-0.5">18</div>
-                      <div className="text-xs text-slate-400">New This Week</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xl font-bold text-orange-400 mb-0.5">12</div>
-                      <div className="text-xs text-slate-400">Applied</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xl font-bold text-pink-300 mb-0.5">5</div>
-                      <div className="text-xs text-slate-400">Interviews</div>
-                    </div>
+                {/* Stats Tiles */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-4 hover:shadow-lg transition-all duration-300">
+                    <div className="text-2xl font-bold text-indigo-600 mb-1">247</div>
+                    <div className="text-xs text-neutral-600 font-medium">Total Matches</div>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-4 hover:shadow-lg transition-all duration-300">
+                    <div className="text-2xl font-bold text-purple-600 mb-1">18</div>
+                    <div className="text-xs text-neutral-600 font-medium">New This Week</div>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-4 hover:shadow-lg transition-all duration-300">
+                    <div className="text-2xl font-bold text-orange-600 mb-1">12</div>
+                    <div className="text-xs text-neutral-600 font-medium">Applied</div>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-4 hover:shadow-lg transition-all duration-300">
+                    <div className="text-2xl font-bold text-pink-600 mb-1">5</div>
+                    <div className="text-xs text-neutral-600 font-medium">Interviews</div>
                   </div>
                 </div>
 
                 {/* Active Filters */}
-                <div className="flex items-center space-x-2.5 mb-3">
-                  <span className="text-xs font-medium text-slate-300">Active Filters:</span>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-medium text-neutral-600">Active Filters:</span>
                   {filters.remote && (
-                    <div className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2.5 py-0.5 rounded-full text-xs flex items-center">
+                    <div className="bg-indigo-100 text-indigo-700 border border-indigo-300 px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
                       Remote OK
-                      <i className="fa-solid fa-times ml-1.5 cursor-pointer text-xs" onClick={() => handleFilterChange('remote', false)}></i>
+                      <i className="fa-solid fa-times cursor-pointer text-xs" onClick={() => handleFilterChange('remote', false)}></i>
                     </div>
                   )}
                   {filters.salaryMin && filters.salaryMax && (
-                    <div className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2.5 py-0.5 rounded-full text-xs flex items-center">
+                    <div className="bg-purple-100 text-purple-700 border border-purple-300 px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
                       ${filters.salaryMin} - ${filters.salaryMax}
-                      <i className="fa-solid fa-times ml-1.5 cursor-pointer text-xs" onClick={() => {
+                      <i className="fa-solid fa-times cursor-pointer text-xs" onClick={() => {
                         handleFilterChange('salaryMin', '')
                         handleFilterChange('salaryMax', '')
                       }}></i>
                     </div>
                   )}
-                  <div className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2.5 py-0.5 rounded-full text-xs flex items-center">
+                  <div className="bg-purple-100 text-purple-700 border border-purple-300 px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
                     {filters.experience === 'mid' ? 'Mid Level' : filters.experience === 'senior' ? 'Senior Level' : 'Entry Level'}
-                    <i className="fa-solid fa-times ml-1.5 cursor-pointer text-xs" onClick={() => handleFilterChange('experience', 'mid')}></i>
+                    <i className="fa-solid fa-times cursor-pointer text-xs" onClick={() => handleFilterChange('experience', 'mid')}></i>
                   </div>
-                  <button className="text-xs text-slate-400 hover:text-white underline">Clear all</button>
+                  <button className="text-xs text-neutral-500 hover:text-neutral-700 underline">Clear all</button>
                 </div>
               </div>
 
+              {/* Filters Panel */}
+              {showFilters && (
+                <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-4 mb-4">
+                  <div className="grid md:grid-cols-3 gap-4">
+                    {/* Location Filter */}
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-700 mb-1.5">Location</label>
+                      <input 
+                        type="text" 
+                        className="w-full border border-neutral-200 bg-white rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 placeholder-neutral-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
+                        placeholder="City, state, or country"
+                        value={filters.location}
+                        onChange={(e) => handleFilterChange('location', e.target.value)}
+                      />
+                    </div>
+
+                    {/* Salary Range */}
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-700 mb-1.5">Salary Range</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input 
+                          type="number" 
+                          className="border border-neutral-200 bg-white rounded-lg px-2 py-1.5 text-xs text-neutral-700 placeholder-neutral-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
+                          placeholder="Min"
+                          value={filters.salaryMin}
+                          onChange={(e) => handleFilterChange('salaryMin', e.target.value)}
+                        />
+                        <input 
+                          type="number" 
+                          className="border border-neutral-200 bg-white rounded-lg px-2 py-1.5 text-xs text-neutral-700 placeholder-neutral-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
+                          placeholder="Max"
+                          value={filters.salaryMax}
+                          onChange={(e) => handleFilterChange('salaryMax', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Experience Level */}
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-700 mb-1.5">Experience Level</label>
+                      <select 
+                        className="w-full border border-neutral-200 bg-white rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        value={filters.experience}
+                        onChange={(e) => handleFilterChange('experience', e.target.value)}
+                      >
+                        <option value="entry">Entry Level (0-2 years)</option>
+                        <option value="mid">Mid Level (3-5 years)</option>
+                        <option value="senior">Senior Level (6+ years)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Job Matches List */}
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {jobMatches.map((job) => (
                   <div 
                     key={job.id} 
-                    className={`${job.isPremium 
-                      ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-2 border-yellow-500/30' 
-                      : 'bg-white/10 backdrop-blur-sm border border-white/20'
-                    } rounded-lg p-5 relative hover:bg-white/15 transition-all`}
+                    className={`${
+                      job.isPremium 
+                        ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300' 
+                        : 'bg-white/80 backdrop-blur-sm border border-indigo-200/50'
+                    } rounded-xl p-4 shadow-md hover:shadow-lg transition-all`}
                   >
                     {job.isPremium && (
-                      <div className="absolute -top-2.5 left-5 bg-yellow-500 text-white px-2.5 py-0.5 rounded-full text-xs font-medium">
+                      <div className="absolute -top-2 left-5 bg-yellow-500 text-white px-2 py-0.5 rounded-full text-xs font-medium">
                         <i className="fa-solid fa-crown mr-1 text-xs"></i>
                         Premium Match
                       </div>
                     )}
-                    <div className="flex items-start space-x-5">
-                      <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-white/20">
-                        <img className="w-11 h-11 rounded-md object-cover" src={job.logo} alt={`${job.company} logo`} />
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center border border-neutral-200 flex-shrink-0">
+                        <img className="w-10 h-10 rounded-md object-cover" src={job.logo} alt={`${job.company} logo`} />
                       </div>
                       <div className="flex-1">
-                        <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-start justify-between mb-2">
                           <div>
-                            <h3 className="text-lg font-bold text-white mb-0.5">{job.title}</h3>
-                            <p className="text-base font-semibold text-slate-300 mb-1.5">{job.company}</p>
-                            <div className="flex items-center space-x-3 text-xs text-slate-400 mb-2.5">
+                            <h3 className="text-base font-bold text-neutral-900 mb-0.5">{job.title}</h3>
+                            <p className="text-sm font-semibold text-neutral-700 mb-1">{job.company}</p>
+                            <div className="flex items-center gap-2 text-xs text-neutral-500 mb-2">
                               <span className="flex items-center">
                                 <i className="fa-solid fa-map-marker-alt mr-1 text-xs"></i>
                                 {job.location}
                               </span>
                               <span className="flex items-center">
                                 <i className="fa-solid fa-clock mr-1 text-xs"></i>
-                                Posted {job.posted}
-                              </span>
-                              <span className="flex items-center">
-                                <i className="fa-solid fa-building mr-1 text-xs"></i>
-                                {job.companyType}
+                                {job.posted}
                               </span>
                             </div>
-                            <div className="flex items-center space-x-2 mb-2.5">
-                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getWorkTypeColor(job.workType)}`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getWorkTypeColor(job.workType)}`}>
                                 {job.workType}
                               </span>
-                              <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2.5 py-0.5 rounded-full text-xs font-medium">
+                              <span className="bg-indigo-100 text-indigo-700 border border-indigo-300 px-2 py-0.5 rounded-full text-xs font-medium">
                                 {job.salary}
                               </span>
                               {job.benefits.map((benefit, index) => (
-                                <span key={index} className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                <span key={index} className="bg-purple-100 text-purple-700 border border-purple-300 px-2 py-0.5 rounded-full text-xs font-medium">
                                   {benefit}
                                 </span>
                               ))}
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className={`rounded-full w-14 h-14 flex items-center justify-center mb-1.5 ${getMatchScoreColor(job.matchScore)}`}>
-                              <span className="text-white font-bold text-base">{job.matchScore}</span>
+                            <div className={`rounded-full w-12 h-12 flex items-center justify-center mb-1 ${getMatchScoreColor(job.matchScore)}`}>
+                              <span className="text-white font-bold text-sm">{job.matchScore}</span>
                             </div>
-                            <div className="text-xs text-slate-400">Match Score</div>
+                            <div className="text-xs text-neutral-500">Match</div>
                           </div>
                         </div>
                         
-                        <p className="text-slate-300 mb-3 leading-relaxed text-sm">
+                        <p className="text-neutral-600 mb-2 leading-relaxed text-sm">
                           {job.description}
                         </p>
                         
-                        <div className="mb-3">
-                          <div className="text-xs font-medium text-slate-300 mb-1.5">Required Skills:</div>
-                          <div className="flex flex-wrap gap-1.5">
+                        <div className="mb-2">
+                          <div className="text-xs font-medium text-neutral-600 mb-1">Required Skills:</div>
+                          <div className="flex flex-wrap gap-1">
                             {job.skills.map((skill, index) => (
                               <span key={index} className="bg-indigo-600 text-white px-2 py-0.5 rounded text-xs">
                                 {skill}
@@ -613,32 +444,28 @@ const JobMatches = () => {
                         </div>
 
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center gap-2">
                             <button 
-                              className="text-slate-400 hover:text-white transition text-xs"
+                              className="text-neutral-500 hover:text-neutral-700 transition text-xs"
                               onClick={() => toggleSaveJob(job.id)}
                             >
-                              <i className={`${savedJobs.has(job.id) ? 'fa-solid fa-heart text-red-400' : 'fa-regular fa-heart'} mr-1 text-xs`}></i>
+                              <i className={`${savedJobs.has(job.id) ? 'fa-solid fa-heart text-red-500' : 'fa-regular fa-heart'} mr-1 text-xs`}></i>
                               {savedJobs.has(job.id) ? 'Saved' : 'Save'}
                             </button>
-                            <button className="text-slate-400 hover:text-white transition text-xs">
+                            <button className="text-neutral-500 hover:text-neutral-700 transition text-xs">
                               <i className="fa-solid fa-share mr-1 text-xs"></i>
                               Share
                             </button>
-                            <button className="text-slate-400 hover:text-white transition text-xs">
-                              <i className="fa-solid fa-eye-slash mr-1 text-xs"></i>
-                              Hide
-                            </button>
                           </div>
-                          <div className="flex items-center space-x-2.5">
+                          <div className="flex items-center gap-2">
                             <button 
-                              className="border border-white/20 bg-white/5 text-white px-5 py-1.5 rounded-md font-medium hover:bg-white/10 transition text-sm"
+                              className="border border-indigo-200 bg-white text-neutral-700 px-4 py-1.5 rounded-lg font-medium hover:bg-indigo-50 transition text-xs"
                               onClick={() => navigate(`/job-details/${job.id}`)}
                             >
                               View Details
                             </button>
-                            <button className="bg-indigo-600 text-white px-5 py-1.5 rounded-md font-medium hover:bg-indigo-700 transition flex items-center text-sm">
-                              <i className="fa-solid fa-paper-plane mr-1.5 text-xs"></i>
+                            <button className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-1.5 rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transition flex items-center text-xs">
+                              <i className="fa-solid fa-paper-plane mr-1 text-xs"></i>
                               {job.isPremium ? 'Quick Apply' : 'Apply'}
                             </button>
                           </div>
@@ -649,192 +476,20 @@ const JobMatches = () => {
                 ))}
 
                 {/* Load More Section */}
-                <div className="text-center py-6">
-                  <button className="bg-white/10 backdrop-blur-sm border border-white/20 text-white px-6 py-2.5 rounded-md font-medium hover:bg-white/20 transition flex items-center mx-auto text-sm">
+                <div className="text-center py-4">
+                  <button className="bg-white border border-indigo-200 text-neutral-700 px-6 py-2 rounded-lg font-medium hover:bg-indigo-50 transition flex items-center mx-auto text-xs">
                     <i className="fa-solid fa-plus mr-1.5 text-xs"></i>
                     Load More Matches
                   </button>
-                  <p className="text-xs text-slate-400 mt-2.5">Showing {jobMatches.length} of 247 matches</p>
+                  <p className="text-xs text-neutral-500 mt-2">Showing {jobMatches.length} of 247 matches</p>
                 </div>
               </div>
+            </div>
+          </section>
         </main>
+      </div>
 
-            {/* Right Sidebar - Match Insights */}
-            <aside className="bg-white/10 backdrop-blur-sm border border-white/20 p-5 overflow-y-auto rounded-xl lg:col-span-3">
-              {/* Match Explanation */}
-              <div className="mb-6">
-                <h3 className="text-base font-semibold text-white mb-3">Why This Match?</h3>
-                <div className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-lg p-3 border border-indigo-500/30">
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-300">Skills Alignment</span>
-                      <div className="flex items-center">
-                        <div className="w-16 bg-white/20 rounded-full h-1.5 mr-1.5">
-                          <div className="bg-green-400 h-1.5 rounded-full" style={{ width: '92%' }}></div>
-                        </div>
-                        <span className="text-xs font-medium text-green-400">92%</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-300">Experience Match</span>
-                      <div className="flex items-center">
-                        <div className="w-16 bg-white/20 rounded-full h-1.5 mr-1.5">
-                          <div className="bg-indigo-400 h-1.5 rounded-full" style={{ width: '88%' }}></div>
-                        </div>
-                        <span className="text-xs font-medium text-indigo-400">88%</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-300">Salary Range</span>
-                      <div className="flex items-center">
-                        <div className="w-16 bg-white/20 rounded-full h-1.5 mr-1.5">
-                          <div className="bg-purple-400 h-1.5 rounded-full" style={{ width: '95%' }}></div>
-                        </div>
-                        <span className="text-xs font-medium text-purple-400">95%</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-300">Location Fit</span>
-                      <div className="flex items-center">
-                        <div className="w-16 bg-white/20 rounded-full h-1.5 mr-1.5">
-                          <div className="bg-orange-400 h-1.5 rounded-full" style={{ width: '100%' }}></div>
-                        </div>
-                        <span className="text-xs font-medium text-orange-400">100%</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Career Insights */}
-              <div className="mb-6">
-                <h3 className="text-base font-semibold text-white mb-3">Career Insights</h3>
-                <div className="space-y-3">
-                  <div className="bg-indigo-500/20 border border-indigo-500/30 rounded-md p-3">
-                    <div className="flex items-start space-x-2.5">
-                      <div className="w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
-                        <i className="fa-solid fa-lightbulb text-white text-xs"></i>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-white mb-0.5 text-sm">Skill Gap Analysis</h4>
-                        <p className="text-xs text-slate-300">Consider learning GraphQL to increase your match score by 8%</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-purple-500/20 border border-purple-500/30 rounded-md p-3">
-                    <div className="flex items-start space-x-2.5">
-                      <div className="w-7 h-7 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                        <i className="fa-solid fa-chart-line text-white text-xs"></i>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-white mb-0.5 text-sm">Market Trend</h4>
-                        <p className="text-xs text-slate-300">React developers in your area see 15% salary growth annually</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Saved Jobs */}
-              <div className="mb-6">
-                <h3 className="text-base font-semibold text-white mb-3">Recently Saved</h3>
-                <div className="space-y-2.5">
-                  <div className="flex items-center space-x-2.5 p-2.5 bg-white/5 border border-white/10 rounded-md">
-                    <div className="w-9 h-9 bg-white/10 rounded-md flex items-center justify-center border border-white/20">
-                      <img className="w-7 h-7 rounded object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/c73833ea5f-fecf083748cfdcde108f.png" alt="tech startup logo minimal design" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-xs text-white">React Developer</div>
-                      <div className="text-xs text-slate-400">TechStart Inc.</div>
-                    </div>
-                    <i className="fa-solid fa-heart text-red-400 text-xs"></i>
-                  </div>
-                  <div className="flex items-center space-x-2.5 p-2.5 bg-white/5 border border-white/10 rounded-md">
-                    <div className="w-9 h-9 bg-white/10 rounded-md flex items-center justify-center border border-white/20">
-                      <img className="w-7 h-7 rounded object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/afce614007-577c228ec7dfe3991da4.png" alt="software company logo blue and white" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-xs text-white">Frontend Engineer</div>
-                      <div className="text-xs text-slate-400">CodeCraft</div>
-                    </div>
-                    <i className="fa-solid fa-heart text-red-400 text-xs"></i>
-                  </div>
-                </div>
-              </div>
-
-              {/* Application Status */}
-              <div className="mb-6">
-                <h3 className="text-base font-semibold text-white mb-3">Application Status</h3>
-                <div className="space-y-2.5">
-                  <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-md p-2.5">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-medium text-xs text-white">Senior Developer</span>
-                      <span className="text-xs bg-yellow-500/30 text-yellow-300 px-2 py-0.5 rounded-full">Under Review</span>
-                    </div>
-                    <div className="text-xs text-slate-300">DataFlow Corp • Applied 3 days ago</div>
-                  </div>
-                  <div className="bg-green-500/20 border border-green-500/30 rounded-md p-2.5">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-medium text-xs text-white">Full Stack Dev</span>
-                      <span className="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded-full">Interview</span>
-                    </div>
-                    <div className="text-xs text-slate-300">WebSolutions • Interview tomorrow</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Job Alerts */}
-              <div className="mb-6">
-                <h3 className="text-base font-semibold text-white mb-3">Job Alerts</h3>
-                <div className="bg-indigo-500/20 border border-indigo-500/30 rounded-md p-3">
-                  <div className="flex items-center space-x-2.5 mb-2.5">
-                    <i className="fa-solid fa-bell text-indigo-300 text-xs"></i>
-                    <span className="font-medium text-white text-sm">Get notified</span>
-                  </div>
-                  <p className="text-xs text-slate-300 mb-2.5">Receive alerts when new jobs matching your criteria are posted.</p>
-                  <button className="w-full bg-indigo-600 text-white py-2 px-3 rounded-md text-xs font-medium hover:bg-indigo-700 transition">
-                    Set Up Alerts
-                  </button>
-                </div>
-              </div>
-
-              {/* Profile Completion */}
-              <div>
-                <h3 className="text-base font-semibold text-white mb-3">Profile Strength</h3>
-                <div className="bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-lg p-3 border border-purple-500/30">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <span className="font-medium text-white text-sm">85% Complete</span>
-                    <span className="text-xs text-purple-300 font-medium">Good</span>
-                  </div>
-                  <div className="w-full bg-white/20 rounded-full h-2.5 mb-3">
-                    <div className="bg-gradient-to-r from-purple-500 to-indigo-500 h-2.5 rounded-full" style={{ width: '85%' }}></div>
-                  </div>
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex items-center text-slate-300">
-                      <i className="fa-solid fa-check text-green-400 mr-1.5 text-xs"></i>
-                      Portfolio links added
-                    </div>
-                    <div className="flex items-center text-slate-300">
-                      <i className="fa-solid fa-check text-green-400 mr-1.5 text-xs"></i>
-                      Skills assessment completed
-                    </div>
-                    <div className="flex items-center text-slate-300">
-                      <i className="fa-solid fa-times text-red-400 mr-1.5 text-xs"></i>
-                      Add work preferences
-                    </div>
-                  </div>
-                  <button 
-                    className="w-full bg-purple-600 text-white py-2 px-3 rounded-md text-xs font-medium hover:bg-purple-700 transition mt-2.5"
-                    onClick={() => navigate('/create-profile')}
-                  >
-                    Complete Profile
-                  </button>
-                </div>
-              </div>
-            </aside>
-          </div>
-        </section>
-      </main>
+      <Footer />
     </div>
   )
 }

@@ -5,8 +5,7 @@ import CreateProfile from './pages/CreateProfile'
 import ImportProfile from './pages/ImportProfile'
 import JobMatches from './pages/JobMatches'
 import JobDetails from './pages/JobDetails'
-import Signin from './pages/Auth'
-import Signup from './pages/Signup'
+import CombinedAuth from './pages/CombinedAuth'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import UserDashboard from './pages/UserDashboard'
@@ -28,8 +27,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/auth" element={<Navigate to="/signin" replace />} />
-        <Route path="/signin" element={<PublicRoute><Signin /></PublicRoute>} />
-        <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+        <Route path="/signin" element={<PublicRoute><CombinedAuth /></PublicRoute>} />
+        <Route path="/signup" element={<PublicRoute><CombinedAuth /></PublicRoute>} />
         <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
         <Route path="/reset-password" element={<PublicRoute><ResetPassword /></PublicRoute>} />
         <Route path="/auth/google/callback" element={<GoogleCallback />} />

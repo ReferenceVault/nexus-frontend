@@ -80,7 +80,7 @@ const Header = ({
   
   return (
     <header id="header" className="bg-white shadow-sm border-b border-neutral-50 sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
         {/* Logo */}
         <div 
           className="flex items-center cursor-pointer hover:opacity-80 transition" 
@@ -91,7 +91,7 @@ const Header = ({
           <img
             src="/logo.jpeg"
             alt="Logo"
-            className="h-10 w-[5.25rem] rounded-lg object-cover"
+            className="h-8 w-[4.2rem] rounded-lg object-cover"
           />
         </div>
 
@@ -220,7 +220,7 @@ const Header = ({
                   </button>
                   <button 
                     className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-2.5 py-1.5 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 transition flex items-center shadow-sm"
-                    onClick={() => navigate('/signup')}
+                    onClick={() => navigate('/signin')}
                   >
                     <i className="fa-solid fa-video w-3.5 h-3.5 mr-1.5"></i>
                     Upload Resume
