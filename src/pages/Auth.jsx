@@ -1,21 +1,154 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { isOnboardingComplete } from '../utils/onboarding'
+import { api } from '../utils/api'
+import { useAuth } from '../hooks/useAuth'
+import FormInput from '../components/common/FormInput'
+import ErrorMessage from '../components/common/ErrorMessage'
+import { isTokenExpired } from '../utils/apiClient'
 
-const Auth = () => {
+const Signin = () => {
   const navigate = useNavigate()
+  const { login, setLoading, isLoading, error, setError, clearError, isAuthenticated, accessToken } = useAuth()
 
-  const handleSignIn = () => {
-    // Check if onboarding is complete
-    if (isOnboardingComplete()) {
-      // Returning user - go to dashboard
-      navigate('/user-dashboard')
-    } else {
-      // First-time user - go to onboarding
-      navigate('/onboarding')
+  // Redirect if already authenticated - check onboarding status
+  useEffect(() => {
+    const checkAndRedirect = async () => {
+      if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
+        try {
+          const userProfile = await api.getCurrentUser()
+          
+          const hasBasicInfo = 
+            userProfile.firstName && 
+            userProfile.lastName && 
+            userProfile.phone && 
+            userProfile.addressInformation &&
+            userProfile.addressInformation.streetAddress &&
+            userProfile.addressInformation.city &&
+            userProfile.addressInformation.state &&
+            userProfile.addressInformation.zipCode &&
+            userProfile.addressInformation.country
+
+          let hasResume = false
+          let hasVideo = false
+          
+          try {
+            const resumes = await api.getUserResumes()
+            hasResume = resumes && resumes.length > 0
+          } catch (error) {
+            console.error('Error checking resumes:', error)
+          }
+
+          try {
+            const videos = await api.getUserVideos()
+            hasVideo = videos && videos.length > 0
+          } catch (error) {
+            console.error('Error checking videos:', error)
+          }
+
+          const onboardingComplete = hasBasicInfo && hasResume && hasVideo
+
+          if (onboardingComplete) {
+            navigate('/user-dashboard', { replace: true })
+          } else {
+            navigate('/onboarding', { replace: true })
+          }
+        } catch (error) {
+          console.error('Error checking onboarding:', error)
+          navigate('/onboarding', { replace: true })
+        }
+      }
     }
+
+    checkAndRedirect()
+  }, [isAuthenticated, accessToken, navigate])
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  })
+  const [errors, setErrors] = useState({})
+  const [showPassword, setShowPassword] = useState(false)
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }))
+    }
+    clearError()
+  }
+
+  const handleSignIn = async (e) => {
+    e?.preventDefault()
+    setLoading(true)
+    clearError()
+    try {
+      const response = await api.login(formData.email, formData.password)
+      
+      // Login using Redux
+      login(response.user, response.tokens)
+      
+      // Check onboarding status before redirecting
+      try {
+        const userProfile = await api.getCurrentUser()
+        
+        // Check if onboarding is complete
+        const hasBasicInfo = 
+          userProfile.firstName && 
+          userProfile.lastName && 
+          userProfile.phone && 
+          userProfile.addressInformation &&
+          userProfile.addressInformation.streetAddress &&
+          userProfile.addressInformation.city &&
+          userProfile.addressInformation.state &&
+          userProfile.addressInformation.zipCode &&
+          userProfile.addressInformation.country
+
+        let hasResume = false
+        let hasVideo = false
+        
+        try {
+          const resumes = await api.getUserResumes()
+          hasResume = resumes && resumes.length > 0
+        } catch (error) {
+          console.error('Error checking resumes:', error)
+        }
+
+        try {
+          const videos = await api.getUserVideos()
+          hasVideo = videos && videos.length > 0
+        } catch (error) {
+          console.error('Error checking videos:', error)
+        }
+
+        const onboardingComplete = hasBasicInfo && hasResume && hasVideo
+
+        // Redirect based on onboarding status
+        if (onboardingComplete) {
+          navigate('/user-dashboard', { replace: true })
+        } else {
+          // Incomplete onboarding - redirect to onboarding
+          navigate('/onboarding', { replace: true })
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error)
+        // If we can't check onboarding, assume incomplete and send to onboarding
+        navigate('/onboarding', { replace: true })
+      }
+    } catch (error) {
+      const errorMessage = error.message || 'Invalid email or password'
+      setError(errorMessage)
+      setErrors({ submit: errorMessage })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignin = () => {
+    // Redirect to backend Google OAuth endpoint
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    window.location.href = `${API_BASE_URL}/auth/google`
   }
   return (
     <div className="bg-white text-neutral-900">
@@ -68,41 +201,61 @@ const Auth = () => {
                 <div className="text-sm font-semibold text-slate-400">Access your profile and applications</div>
               </div>
 
-              <form className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Email Address</label>
-                  <input
+              <ErrorMessage error={error || errors.submit} onDismiss={clearError} />
+
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <FormInput
+                  label="Email Address"
+                  name="email"
                     type="email"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    value={formData.email}
+                    onChange={handleInputChange}
                     placeholder="your@email.com"
+                    required
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Password</label>
-                  <input
-                    type="password"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                    placeholder="Enter your password"
-                  />
-                </div>
+                <FormInput
+                  label="Password"
+                      name="password"
+                  type="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Enter your password"
+                      required
+                  showPasswordToggle
+                  showPassword={showPassword}
+                  onTogglePassword={() => setShowPassword(!showPassword)}
+                />
 
                 <div className="flex items-center justify-between text-xs text-slate-600">
                   <label className="inline-flex items-center space-x-2 cursor-pointer">
                     <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
                     <span>Remember me</span>
                   </label>
-                  <button type="button" className="text-indigo-500 hover:text-indigo-600 font-medium">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/forgot-password')}
+                    className="text-indigo-500 hover:text-indigo-600 font-medium"
+                  >
                     Forgot password?
                   </button>
                 </div>
 
                 <button
-                  type="button"
-                  className="w-3/5 mx-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg py-2.5 text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2"
-                  onClick={handleSignIn}
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg py-2.5 text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span>Sign In to Dashboard</span>
-                  <i className="fa-solid fa-right-to-bracket text-sm"></i>
+                  {isLoading ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin"></i>
+                      <span>Signing in...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Sign In to Dashboard</span>
+                      <i className="fa-solid fa-right-to-bracket text-sm"></i>
+                    </>
+                  )}
                 </button>
 
                 <div className="flex items-center space-x-2 text-xs text-slate-500">
@@ -111,14 +264,23 @@ const Auth = () => {
                   <div className="h-px flex-1 bg-slate-200" />
                 </div>
 
-                <div className="grid grid-cols-1 gap-3">
+                <button
+                  type="button"
+                  onClick={handleGoogleSignin}
+                  className="w-full flex items-center justify-center rounded-lg border border-slate-200 bg-gradient-to-r from-slate-50 to-indigo-50 py-2.5 text-xs font-semibold hover:from-slate-100 hover:to-indigo-100 transition"
+                >
+                  <i className="fa-brands fa-google text-indigo-600 mr-2 text-sm"></i>
+                  <span className="font-bold">Sign in with Google</span>
+                </button>
+
+                <div className="text-center text-xs text-slate-600">
+                  Don't have an account?{' '}
                   <button
                     type="button"
-                    className="w-3/5 mx-auto flex items-center justify-center rounded-lg border border-slate-200 bg-gradient-to-r from-slate-50 to-indigo-50 py-1.5 text-xs font-semibold hover:from-slate-100 hover:to-indigo-100 transition"
-                    onClick={handleSignIn}
+                    onClick={() => navigate('/signup')}
+                    className="text-indigo-500 hover:text-indigo-600 font-medium"
                   >
-                    <i className="fa-brands fa-google text-indigo-600 mr-2 text-sm"></i>
-                    <span className="font-bold">Google</span>
+                    Sign up
                   </button>
                 </div>
               </form>
@@ -133,5 +295,5 @@ const Auth = () => {
   )
 }
 
-export default Auth
+export default Signin
 

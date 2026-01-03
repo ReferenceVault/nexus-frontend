@@ -54,3 +54,50 @@ export const resetOnboarding = () => {
   localStorage.removeItem(ONBOARDING_KEY)
 }
 
+/**
+ * Check if user has completed all onboarding steps by verifying data
+ * This is an async function that checks the actual user data
+ */
+export const checkOnboardingComplete = async (api) => {
+  try {
+    // Get user profile to check step 1 completion
+    const userProfile = await api.getCurrentUser()
+    
+    // Check if step 1 is complete (has firstName, lastName, phone, addressInformation)
+    const step1Complete = 
+      userProfile.firstName && 
+      userProfile.lastName && 
+      userProfile.phone && 
+      userProfile.addressInformation &&
+      userProfile.addressInformation.streetAddress &&
+      userProfile.addressInformation.city &&
+      userProfile.addressInformation.state &&
+      userProfile.addressInformation.zipCode &&
+      userProfile.addressInformation.country
+
+    // Check if step 2 is complete (has uploaded resume)
+    let step2Complete = false
+    try {
+      const resumes = await api.getUserResumes()
+      step2Complete = resumes && resumes.length > 0
+    } catch (error) {
+      console.error('Error checking resumes:', error)
+    }
+
+    // Check if step 3 is complete (has uploaded video)
+    let step3Complete = false
+    try {
+      const videos = await api.getUserVideos()
+      step3Complete = videos && videos.length > 0
+    } catch (error) {
+      console.error('Error checking videos:', error)
+    }
+
+    // All three steps must be complete
+    return step1Complete && step2Complete && step3Complete
+  } catch (error) {
+    console.error('Error checking onboarding completion:', error)
+    return false
+  }
+}
+
