@@ -33,6 +33,7 @@ const UserDashboard = () => {
   const [analysisRequests, setAnalysisRequests] = useState([])
   const [resumeDownloadUrls, setResumeDownloadUrls] = useState({})
   const [videoDownloadUrls, setVideoDownloadUrls] = useState({})
+  const [profileLoaded, setProfileLoaded] = useState(false)
   
   const userName = user?.firstName && user?.lastName 
     ? `${user.firstName} ${user.lastName}` 
@@ -91,10 +92,10 @@ const UserDashboard = () => {
     fetchUserData()
   }, [isAuthenticated, accessToken])
 
-  // Fetch profile when form is shown
+  // Fetch profile when profile view is active
   useEffect(() => {
     const fetchUserProfile = async () => {
-      if (showProfileForm && isAuthenticated && accessToken) {
+      if (activeView === 'profile' && isAuthenticated && accessToken && !profileLoaded) {
         try {
           setIsLoadingProfile(true)
           const userProfile = await api.getCurrentUser()
@@ -110,6 +111,7 @@ const UserDashboard = () => {
             zipCode: userProfile.addressInformation?.zipCode || '',
             country: userProfile.addressInformation?.country || '',
           })
+          setProfileLoaded(true)
         } catch (error) {
           console.error('Error fetching user profile:', error)
         } finally {
@@ -118,7 +120,14 @@ const UserDashboard = () => {
       }
     }
     fetchUserProfile()
-  }, [showProfileForm, isAuthenticated, accessToken])
+  }, [activeView, isAuthenticated, accessToken, profileLoaded])
+  
+  // Reset profile loaded flag when switching away from profile view
+  useEffect(() => {
+    if (activeView !== 'profile') {
+      setProfileLoaded(false)
+    }
+  }, [activeView])
 
   const handleLogout = async () => {
     try {
