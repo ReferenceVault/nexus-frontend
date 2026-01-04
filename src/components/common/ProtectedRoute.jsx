@@ -66,13 +66,16 @@ const ProtectedRoute = ({ children }) => {
       // Always check onboarding for authenticated users on protected routes
       console.log('🛡️ ProtectedRoute: Checking onboarding status for', location.pathname)
       setIsCheckingOnboarding(true)
+      setOnboardingComplete(null) // Reset to null while checking
       try {
         const complete = await checkOnboardingComplete(api)
         console.log('🛡️ ProtectedRoute: Onboarding check result:', complete, 'for', location.pathname)
-        setOnboardingComplete(complete)
+        // Use functional update to ensure we have the latest state
+        setOnboardingComplete(() => complete)
       } catch (error) {
         console.error('🛡️ ProtectedRoute: Error checking onboarding:', error)
-        setOnboardingComplete(false) // Default to false on error - force onboarding
+        // Use functional update to ensure we have the latest state
+        setOnboardingComplete(() => false) // Default to false on error - force onboarding
       } finally {
         setIsCheckingOnboarding(false)
       }
@@ -111,10 +114,33 @@ const ProtectedRoute = ({ children }) => {
   }
 
   // For all other protected routes, check onboarding completion
-  // Block access if onboarding is not complete (false) or still checking (null)
-  if (onboardingComplete !== true) {
-    // Still checking or incomplete - redirect to onboarding
+  // Only check after we've finished checking (isCheckingOnboarding is false)
+  // If onboardingComplete is null, it means we haven't checked yet or check failed
+  console.log('🛡️ ProtectedRoute: Final check - onboardingComplete:', onboardingComplete, 'isCheckingOnboarding:', isCheckingOnboarding)
+  
+  // If we've finished checking and onboarding is not complete, redirect
+  if (!isCheckingOnboarding && onboardingComplete === false) {
+    console.log('🛡️ ProtectedRoute: Redirecting to onboarding - onboarding incomplete')
     return <Navigate to="/onboarding" replace />
+  }
+  
+  // If we've finished checking and onboarding is complete, allow access
+  if (!isCheckingOnboarding && onboardingComplete === true) {
+    return children
+  }
+  
+  // If still checking or status is null (shouldn't reach here due to earlier check, but safety net)
+  if (isCheckingOnboarding || onboardingComplete === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-14 w-14 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg animate-spin">
+            <i className="fa-solid fa-spinner text-white text-xl"></i>
+          </div>
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   // Only allow access if onboarding is explicitly complete
