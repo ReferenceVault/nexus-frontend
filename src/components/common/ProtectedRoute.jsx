@@ -13,7 +13,7 @@ const ProtectedRoute = ({ children }) => {
   const location = useLocation()
   
   // Routes that don't require onboarding completion
-  const onboardingRoutes = ['/onboarding']
+  const onboardingRoutes = ['/onboarding', '/assessments', '/analysis']
   const isOnboardingRoute = onboardingRoutes.some(route => location.pathname.startsWith(route))
 
   useEffect(() => {
@@ -102,7 +102,8 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/signin" replace />
   }
 
-  // For onboarding route, always allow access
+  // For onboarding, assessment, and analysis routes, always allow access
+  // These routes handle their own logic for what to show based on user state
   if (isOnboardingRoute) {
     return children
   }
