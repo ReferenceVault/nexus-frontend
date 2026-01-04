@@ -35,15 +35,26 @@ class WebSocketClient {
     }
 
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-    // Convert http:// to ws:// or https:// to wss://
-    const wsUrl = API_BASE_URL.replace(/^http/, 'ws').replace(/^https/, 'wss');
+    
+    // Parse the API URL to extract components
+    const apiUrl = new URL(API_BASE_URL);
+    const socketBaseUrl = `${apiUrl.protocol}//${apiUrl.host}`;
+    const namespace = '/ws';
+    
+    // Extract the path from API_BASE_URL (e.g., '/backend' from 'https://cipnexus.com/backend')
+    // Socket.IO path needs to include the API path prefix
+    const apiPath = apiUrl.pathname.endsWith('/') 
+      ? apiUrl.pathname.slice(0, -1) 
+      : apiUrl.pathname;
+    const socketPath = apiPath ? `${apiPath}/socket.io/` : '/socket.io/';
+    
+    console.log('Connecting to WebSocket:', `${socketBaseUrl}${namespace}`, 'with path:', socketPath);
 
-    console.log('Connecting to WebSocket:', `${wsUrl}/ws`);
-
-    this.socket = io(`${wsUrl}/ws`, {
+    this.socket = io(`${socketBaseUrl}${namespace}`, {
       auth: {
         token: accessToken,
       },
+      path: socketPath,
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: this.reconnectDelay,
