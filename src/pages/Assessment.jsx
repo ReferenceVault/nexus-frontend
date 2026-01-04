@@ -231,8 +231,8 @@ const Assessment = () => {
               }
             ]}
             quickFilters={[
-              { label: 'Upload Resume', icon: 'fa-solid fa-upload', onClick: () => navigate('/onboarding?step=2') },
-              { label: 'Upload Video', icon: 'fa-solid fa-video', onClick: () => navigate('/onboarding?step=3') },
+              { label: 'Upload Resume', icon: 'fa-solid fa-upload', onClick: () => navigate('/upload-resume') },
+              { label: 'Upload Video', icon: 'fa-solid fa-video', onClick: () => navigate('/upload-video') },
               { label: 'Take Assessment', icon: 'fa-solid fa-clipboard-question', onClick: () => {} },
               { label: 'Browse Jobs', icon: 'fa-solid fa-search', onClick: () => navigate('/job-matches') }
             ]}
@@ -440,8 +440,8 @@ const Assessment = () => {
             }
           ]}
           quickFilters={[
-            { label: 'Upload Resume', icon: 'fa-solid fa-upload', onClick: () => navigate('/onboarding?step=2') },
-            { label: 'Upload Video', icon: 'fa-solid fa-video', onClick: () => navigate('/onboarding?step=3') },
+            { label: 'Upload Resume', icon: 'fa-solid fa-upload', onClick: () => navigate('/upload-resume') },
+            { label: 'Upload Video', icon: 'fa-solid fa-video', onClick: () => navigate('/upload-video') },
             { label: 'Take Assessment', icon: 'fa-solid fa-clipboard-question', onClick: () => {} },
             { label: 'Browse Jobs', icon: 'fa-solid fa-search', onClick: () => navigate('/job-matches') }
           ]}
@@ -1101,54 +1101,6 @@ const Assessment = () => {
                 )}
               </div>
 
-              {/* Ready to Level Up Banner */}
-              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl border border-indigo-300 shadow-md p-4 mb-4 relative overflow-hidden">
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden md:block">
-                  <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-                    <i className="fa-solid fa-rocket text-white text-2xl"></i>
-                  </div>
-                </div>
-
-                <div className="relative z-10 max-w-3xl">
-                  <h2 className="text-xl font-bold text-white mb-1">Ready to Level Up?</h2>
-                  <p className="text-white/90 mb-4 text-xs">
-                    Follow our personalized roadmap to boost your profile score and land better opportunities.
-                  </p>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                        <i className="fa-solid fa-check text-white text-xs"></i>
-                      </div>
-                      <span className="text-white text-sm">Detailed improvement suggestions</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                        <i className="fa-solid fa-check text-white text-xs"></i>
-                      </div>
-                      <span className="text-white text-sm">Skill development recommendations</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                        <i className="fa-solid fa-check text-white text-xs"></i>
-                      </div>
-                      <span className="text-white text-sm">Market-aligned career guidance</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3">
-                    <button className="bg-white text-primary border border-white/30 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition flex items-center gap-2">
-                      <i className="fa-solid fa-play text-primary"></i>
-                      <span>Start Improvement Plan</span>
-                    </button>
-                    <button className="bg-indigo-500 text-white border border-white/30 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2">
-                      <i className="fa-regular fa-calendar text-white"></i>
-                      <span>Schedule Coaching Call</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
               {/* Improvement Roadmap Section */}
               {improvementRoadmap && (improvementRoadmap.highPriority?.length > 0 || improvementRoadmap.mediumPriority?.length > 0 || improvementRoadmap.lowPriority?.length > 0) && (
                 <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-4 mb-4">
@@ -1243,6 +1195,54 @@ const Assessment = () => {
                   </div>
                 </div>
               )}
+
+              {/* Ready to Level Up Banner */}
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl border border-indigo-300 shadow-md p-4 mb-4 relative overflow-hidden">
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden md:block">
+                  <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
+                    <i className="fa-solid fa-rocket text-white text-2xl"></i>
+                  </div>
+                </div>
+
+                <div className="relative z-10 max-w-3xl">
+                  <h2 className="text-xl font-bold text-white mb-1">Ready to Level Up?</h2>
+                  <p className="text-white/90 mb-4 text-xs">
+                    Follow our personalized roadmap to boost your profile score and land better opportunities.
+                  </p>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                        <i className="fa-solid fa-check text-white text-xs"></i>
+                      </div>
+                      <span className="text-white text-sm">Detailed improvement suggestions</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                        <i className="fa-solid fa-check text-white text-xs"></i>
+                      </div>
+                      <span className="text-white text-sm">Skill development recommendations</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                        <i className="fa-solid fa-check text-white text-xs"></i>
+                      </div>
+                      <span className="text-white text-sm">Market-aligned career guidance</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <button className="bg-white text-primary border border-white/30 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition flex items-center gap-2">
+                      <i className="fa-solid fa-play text-primary"></i>
+                      <span>Start Improvement Plan</span>
+                    </button>
+                    <button className="bg-indigo-500 text-white border border-white/30 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2">
+                      <i className="fa-regular fa-calendar text-white"></i>
+                      <span>Schedule Coaching Call</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
         </main>

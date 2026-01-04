@@ -13,6 +13,8 @@ import Onboarding from './pages/Onboarding'
 import Assessment from './pages/Assessment'
 import GoogleCallback from './pages/GoogleCallback'
 import AnalysisStatus from './pages/AnalysisStatus'
+import UploadResume from './pages/UploadResume'
+import UploadVideo from './pages/UploadVideo'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import PublicRoute from './components/common/PublicRoute'
 
@@ -35,6 +37,8 @@ function App() {
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/analysis/:id" element={<ProtectedRoute><AnalysisStatus /></ProtectedRoute>} />
             <Route path="/user-dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+        <Route path="/upload-resume" element={<ProtectedRoute><UploadResume /></ProtectedRoute>} />
+        <Route path="/upload-video" element={<ProtectedRoute><UploadVideo /></ProtectedRoute>} />
         <Route path="/assessments/:id?" element={<ProtectedRoute><Assessment /></ProtectedRoute>} />
         <Route path="/create-profile" element={<ProtectedRoute><CreateProfile /></ProtectedRoute>} />
         <Route path="/import-profile" element={<ProtectedRoute><ImportProfile /></ProtectedRoute>} />

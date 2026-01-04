@@ -197,8 +197,8 @@ const UserDashboard = () => {
             }
           ]}
           quickFilters={[
-            { label: 'Upload Resume', icon: 'fa-solid fa-upload', onClick: () => navigate('/onboarding?step=2') },
-            { label: 'Upload Video', icon: 'fa-solid fa-video', onClick: () => navigate('/onboarding?step=3') },
+            { label: 'Upload Resume', icon: 'fa-solid fa-upload', onClick: () => navigate('/upload-resume') },
+            { label: 'Upload Video', icon: 'fa-solid fa-video', onClick: () => navigate('/upload-video') },
             { label: 'Take Assessment', icon: 'fa-solid fa-clipboard-question', onClick: () => navigate('/assessments') },
             { label: 'Browse Jobs', icon: 'fa-solid fa-search', onClick: () => navigate('/job-matches') }
           ]}
@@ -389,7 +389,7 @@ const UserDashboard = () => {
                     <p className="text-xs text-neutral-600">Manage and track your uploaded resumes</p>
                   </div>
                   <button 
-                    onClick={() => navigate('/onboarding?step=2')}
+                    onClick={() => navigate('/upload-resume')}
                     className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-indigo-500/30 transition-all flex items-center gap-2"
                   >
                     <i className="fa-solid fa-plus text-xs"></i>
@@ -430,7 +430,7 @@ const UserDashboard = () => {
                     <h3 className="text-lg font-semibold text-neutral-900 mb-1">No resumes uploaded</h3>
                     <p className="text-sm text-neutral-600 mb-4">Upload your first resume to get started</p>
                     <button 
-                      onClick={() => navigate('/onboarding?step=2')}
+                      onClick={() => navigate('/upload-resume')}
                       className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-indigo-500/30 transition-all inline-flex items-center gap-2"
                     >
                       <i className="fa-solid fa-plus text-xs"></i>
@@ -449,7 +449,7 @@ const UserDashboard = () => {
                     <p className="text-xs text-neutral-600">Manage your video introductions</p>
                   </div>
                   <button 
-                    onClick={() => navigate('/onboarding?step=3')}
+                    onClick={() => navigate('/upload-video')}
                     className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-indigo-500/30 transition-all flex items-center gap-2"
                   >
                     <i className="fa-solid fa-plus text-xs"></i>
@@ -482,7 +482,7 @@ const UserDashboard = () => {
                     <h3 className="text-lg font-semibold text-neutral-900 mb-1">No videos uploaded</h3>
                     <p className="text-sm text-neutral-600 mb-4">Upload your first video introduction</p>
                     <button 
-                      onClick={() => navigate('/onboarding?step=3')}
+                      onClick={() => navigate('/upload-video')}
                       className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-indigo-500/30 transition-all inline-flex items-center gap-2"
                     >
                       <i className="fa-solid fa-plus text-xs"></i>
@@ -681,8 +681,8 @@ const UserDashboard = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                     {[
-                      { icon: 'fa-solid fa-upload', title: 'Upload Resume', description: 'Add or update your resume', onClick: () => navigate('/onboarding?step=2') },
-                      { icon: 'fa-solid fa-video', title: 'Upload Video', description: 'Record your introduction video', onClick: () => navigate('/onboarding?step=3') },
+                      { icon: 'fa-solid fa-upload', title: 'Upload Resume', description: 'Add or update your resume', onClick: () => navigate('/upload-resume') },
+                      { icon: 'fa-solid fa-video', title: 'Upload Video', description: 'Record your introduction video', onClick: () => navigate('/upload-video') },
                       { icon: 'fa-solid fa-briefcase', title: 'Browse Jobs', description: 'Discover job opportunities', onClick: () => navigate('/job-matches') },
                       { icon: 'fa-solid fa-user-pen', title: 'Edit Profile', description: 'Update your profile information', onClick: () => setActiveView('profile') }
                     ].map((action, index) => (

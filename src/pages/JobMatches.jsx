@@ -233,8 +233,8 @@ const JobMatches = () => {
             }
           ]}
           quickFilters={[
-            { label: 'Upload Resume', icon: 'fa-solid fa-upload', onClick: () => navigate('/onboarding?step=2') },
-            { label: 'Upload Video', icon: 'fa-solid fa-video', onClick: () => navigate('/onboarding?step=3') },
+            { label: 'Upload Resume', icon: 'fa-solid fa-upload', onClick: () => navigate('/upload-resume') },
+            { label: 'Upload Video', icon: 'fa-solid fa-video', onClick: () => navigate('/upload-video') },
             { label: 'Take Assessment', icon: 'fa-solid fa-clipboard-question', onClick: () => navigate('/assessments') },
             { label: 'Browse Jobs', icon: 'fa-solid fa-search', onClick: () => {} }
           ]}
