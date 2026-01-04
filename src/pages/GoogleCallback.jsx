@@ -62,66 +62,43 @@ const GoogleCallback = () => {
     // Prevent multiple executions
     if (processedRef.current) return
     
-    // Extract code from URL query params (new flow)
+    // Extract code from URL query params
     const code = searchParams.get('code')
-    // Extract tokens from URL query params (old flow - backward compatibility)
-    const accessToken = searchParams.get('accessToken')
-    const refreshToken = searchParams.get('refreshToken')
-    const userDataStr = searchParams.get('user')
 
-    if (code) {
-      // New flow: exchange code for tokens
+    if (!code) {
       processedRef.current = true
-      
-      const processCallback = async () => {
-        try {
-          // Exchange code for tokens and user data
-          const response = await unauthenticatedFetch('/auth/google/callback', {
-            method: 'POST',
-            body: JSON.stringify({ code }),
-          })
-          
-          const result = await handleApiError(response)
-          
-          // Login using Redux with tokens and user data
-          login(result.user, {
-            accessToken: result.tokens.accessToken,
-            refreshToken: result.tokens.refreshToken,
-          })
-
-          // Check onboarding and redirect
-          await checkOnboardingAndRedirect()
-        } catch (error) {
-          console.error('Error processing Google callback:', error)
-          navigate('/signin', { replace: true })
-        }
-      }
-
-      processCallback()
-    } else if (accessToken && refreshToken && userDataStr) {
-      // Old flow: tokens in URL (backward compatibility)
-      processedRef.current = true
-      
-      const processCallback = async () => {
-        try {
-          // Parse user data and login using Redux
-          const userData = JSON.parse(decodeURIComponent(userDataStr))
-          login(userData, { accessToken, refreshToken })
-
-          // Check onboarding and redirect
-          await checkOnboardingAndRedirect()
-        } catch (error) {
-          console.error('Error processing Google callback:', error)
-          navigate('/signin', { replace: true })
-        }
-      }
-
-      processCallback()
-    } else {
-      processedRef.current = true
-      // Missing code or tokens, redirect to signin
+      console.error('Missing authorization code from Google')
       navigate('/signin', { replace: true })
+      return
     }
+
+    processedRef.current = true
+    
+    const processCallback = async () => {
+      try {
+        // Exchange code for tokens and user data
+        const response = await unauthenticatedFetch('/auth/google/callback', {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        })
+        
+        const result = await handleApiError(response)
+        
+        // Login using Redux with tokens and user data
+        login(result.user, {
+          accessToken: result.tokens.accessToken,
+          refreshToken: result.tokens.refreshToken,
+        })
+
+        // Check onboarding and redirect
+        await checkOnboardingAndRedirect()
+      } catch (error) {
+        console.error('Error processing Google callback:', error)
+        navigate('/signin', { replace: true })
+      }
+    }
+
+    processCallback()
   }, [searchParams, navigate, login])
 
   return (
