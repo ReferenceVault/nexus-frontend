@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Footer from '../components/Footer'
 import SocialSidebar from '../components/SocialSidebar'
@@ -6,13 +6,17 @@ import DashboardHeader from '../components/DashboardHeader'
 import DashboardSidebar from '../components/DashboardSidebar'
 import { useAuth } from '../hooks/useAuth'
 import { api } from '../utils/api'
+import { getCandidateMenuItems, getCandidateQuickActions } from '../utils/candidateSidebar'
 
 const JobMatches = () => {
   const navigate = useNavigate()
   const { user, logout, isAuthenticated, accessToken } = useAuth()
-  const [savedJobs, setSavedJobs] = useState(new Set(['react-developer-healthtech']))
+  const [savedJobs, setSavedJobs] = useState(new Set())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false)
+  const [jobs, setJobs] = useState([])
+  const [jobsError, setJobsError] = useState(null)
   const [filters, setFilters] = useState({
     location: '',
     salaryMin: '',
@@ -23,88 +27,39 @@ const JobMatches = () => {
     remote: true
   })
 
-  const jobMatches = [
-    {
-      id: 'senior-frontend-techflow',
-      title: 'Senior Frontend Developer',
-      company: 'TechFlow Inc.',
-      location: 'San Francisco, CA',
-      posted: '2 days ago',
-      companyType: 'Series B Startup',
-      salary: '$95k - $130k',
-      workType: 'Remote OK',
-      benefits: ['Equity Available'],
-      matchScore: 96,
-      isPremium: true,
-      description: 'Join our growing team to build next-generation web applications using React, TypeScript, and modern frontend technologies. We\'re looking for someone passionate about user experience and performance optimization.',
-      skills: ['React', 'TypeScript', 'Redux', 'Next.js', 'GraphQL'],
-      logo: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/2615db9833-1271f64869e51bf90875.png'
-    },
-    {
-      id: 'full-stack-financehub',
-      title: 'Full Stack Engineer',
-      company: 'FinanceHub',
-      location: 'New York, NY',
-      posted: '1 week ago',
-      companyType: '200-500 employees',
-      salary: '$85k - $115k',
-      workType: 'Hybrid',
-      benefits: ['Great Benefits'],
-      matchScore: 89,
-      isPremium: false,
-      description: 'Build scalable financial applications using React, Node.js, and PostgreSQL. Work with a collaborative team to deliver features that impact millions of users worldwide.',
-      skills: ['React', 'Node.js', 'PostgreSQL', 'AWS', 'Docker'],
-      logo: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/623dd88eee-8b0dcc56b705435f7025.png'
-    },
-    {
-      id: 'react-developer-healthtech',
-      title: 'React Developer',
-      company: 'HealthTech Solutions',
-      location: 'Austin, TX',
-      posted: '3 days ago',
-      companyType: 'Growth Stage',
-      salary: '$75k - $105k',
-      workType: 'Remote OK',
-      benefits: ['Mission Driven'],
-      matchScore: 84,
-      isPremium: false,
-      description: 'Develop healthcare applications that improve patient outcomes. Work with cutting-edge technology to create intuitive user interfaces for medical professionals.',
-      skills: ['React', 'JavaScript', 'Redux', 'Material-UI', 'Jest'],
-      logo: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/e72528e45d-81fb3cc5e5597fae6dff.png'
-    },
-    {
-      id: 'frontend-engineer-shopsmart',
-      title: 'Frontend Engineer',
-      company: 'ShopSmart',
-      location: 'Seattle, WA',
-      posted: '5 days ago',
-      companyType: '1000+ employees',
-      salary: '$90k - $125k',
-      workType: 'Hybrid',
-      benefits: ['Stock Options'],
-      matchScore: 82,
-      isPremium: false,
-      description: 'Build and optimize e-commerce experiences for millions of users. Work with modern frontend technologies to create fast, responsive, and accessible web applications.',
-      skills: ['React', 'TypeScript', 'Next.js', 'Webpack', 'CSS-in-JS'],
-      logo: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/9bd2c40ef2-e2aa0c3d756f68bb892d.png'
-    },
-    {
-      id: 'javascript-developer-gamestudio',
-      title: 'JavaScript Developer',
-      company: 'GameStudio Pro',
-      location: 'Los Angeles, CA',
-      posted: '1 week ago',
-      companyType: 'Gaming Studio',
-      salary: '$80k - $110k',
-      workType: 'Remote OK',
-      benefits: ['Creative Environment'],
-      matchScore: 78,
-      isPremium: false,
-      description: 'Create immersive gaming experiences using JavaScript and WebGL. Join a creative team building the next generation of browser-based games and interactive entertainment.',
-      skills: ['JavaScript', 'WebGL', 'Three.js', 'Canvas API', 'Game Physics'],
-      logo: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/d900c6a2d2-ccd92a21d53ecf6baaa1.png'
+  useEffect(() => {
+    const loadJobs = async () => {
+      setIsLoadingJobs(true)
+      setJobsError(null)
+      try {
+        const data = await api.listPublishedJobs()
+        setJobs(data || [])
+      } catch (error) {
+        setJobsError(error.message || 'Failed to load jobs.')
+      } finally {
+        setIsLoadingJobs(false)
+      }
     }
-  ]
+
+    loadJobs()
+  }, [])
+
+  const jobMatches = jobs.map((job) => ({
+    id: job.id,
+    title: job.title,
+    company: job.company?.name || 'Company',
+    location: job.location || 'Location not set',
+    posted: job.createdAt ? new Date(job.createdAt).toLocaleDateString() : 'Recently',
+    companyType: job.company?.industry || 'Hiring',
+    salary: job.salaryRange || 'Salary not listed',
+    workType: job.workFormat || 'Work format',
+    benefits: job.employmentType ? [job.employmentType.replace('_', ' ')] : [],
+    matchScore: 0,
+    isPremium: false,
+    description: job.descriptionRaw || 'Job description not available.',
+    skills: job.skillsRequired || [],
+    logo: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/2615db9833-1271f64869e51bf90875.png'
+  }))
 
   const userName = user?.firstName && user?.lastName 
     ? `${user.firstName} ${user.lastName}` 
@@ -159,14 +114,14 @@ const JobMatches = () => {
   }
 
   const getWorkTypeColor = (workType) => {
-    switch (workType) {
-      case 'Remote OK':
-        return 'bg-green-100 text-green-700 border border-green-300'
-      case 'Hybrid':
-        return 'bg-orange-100 text-orange-700 border border-orange-300'
-      default:
-        return 'bg-neutral-100 text-neutral-700 border border-neutral-300'
+    const normalized = (workType || '').toString().toUpperCase()
+    if (normalized.includes('REMOTE')) {
+      return 'bg-green-100 text-green-700 border border-green-300'
     }
+    if (normalized.includes('HYBRID')) {
+      return 'bg-orange-100 text-orange-700 border border-orange-300'
+    }
+    return 'bg-neutral-100 text-neutral-700 border border-neutral-300'
   }
 
   const getMatchScoreColor = (score) => {
@@ -200,44 +155,8 @@ const JobMatches = () => {
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           activeView="job-matches"
-          menuItems={[
-            {
-              id: 'overview',
-              label: 'Overview',
-              icon: 'fa-solid fa-grid-2',
-              onClick: () => navigate('/user-dashboard')
-            },
-            {
-              id: 'resumes',
-              label: 'My Resumes',
-              icon: 'fa-solid fa-file-pdf',
-              onClick: () => navigate('/user-dashboard')
-            },
-            {
-              id: 'videos',
-              label: 'Video Introductions',
-              icon: 'fa-solid fa-video',
-              onClick: () => navigate('/user-dashboard')
-            },
-            {
-              id: 'assessments',
-              label: 'Assessments',
-              icon: 'fa-solid fa-clipboard-check',
-              onClick: () => navigate('/assessments')
-            },
-            {
-              id: 'job-matches',
-              label: 'Job Matches',
-              icon: 'fa-solid fa-briefcase',
-              onClick: () => {}
-            }
-          ]}
-          quickFilters={[
-            { label: 'Upload Resume', icon: 'fa-solid fa-upload', onClick: () => navigate('/upload-resume') },
-            { label: 'Upload Video', icon: 'fa-solid fa-video', onClick: () => navigate('/upload-video') },
-            { label: 'Take Assessment', icon: 'fa-solid fa-clipboard-question', onClick: () => navigate('/assessments') },
-            { label: 'Browse Jobs', icon: 'fa-solid fa-search', onClick: () => {} }
-          ]}
+          menuItems={getCandidateMenuItems({ navigate })}
+          quickFilters={getCandidateQuickActions(navigate)}
         />
 
         <main className="flex-1 pr-11 lg:pr-14">
@@ -248,7 +167,7 @@ const JobMatches = () => {
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <h1 className="text-xl md:text-2xl font-bold text-neutral-900 mb-0.5">Job Matches</h1>
-                    <p className="text-xs text-neutral-600">Personalized opportunities based on your profile and preferences</p>
+                    <p className="text-xs text-neutral-600">All published roles available right now</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button 
@@ -273,20 +192,20 @@ const JobMatches = () => {
                 {/* Stats Tiles */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
                   <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-4 hover:shadow-lg transition-all duration-300">
-                    <div className="text-2xl font-bold text-indigo-600 mb-1">247</div>
-                    <div className="text-xs text-neutral-600 font-medium">Total Matches</div>
+                    <div className="text-2xl font-bold text-indigo-600 mb-1">{jobMatches.length}</div>
+                    <div className="text-xs text-neutral-600 font-medium">Available Jobs</div>
                   </div>
                   <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-4 hover:shadow-lg transition-all duration-300">
-                    <div className="text-2xl font-bold text-purple-600 mb-1">18</div>
-                    <div className="text-xs text-neutral-600 font-medium">New This Week</div>
+                    <div className="text-2xl font-bold text-purple-600 mb-1">{jobs.length}</div>
+                    <div className="text-xs text-neutral-600 font-medium">Published Roles</div>
                   </div>
                   <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-4 hover:shadow-lg transition-all duration-300">
-                    <div className="text-2xl font-bold text-orange-600 mb-1">12</div>
-                    <div className="text-xs text-neutral-600 font-medium">Applied</div>
+                    <div className="text-2xl font-bold text-orange-600 mb-1">{savedJobs.size}</div>
+                    <div className="text-xs text-neutral-600 font-medium">Saved Jobs</div>
                   </div>
                   <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-4 hover:shadow-lg transition-all duration-300">
-                    <div className="text-2xl font-bold text-pink-600 mb-1">5</div>
-                    <div className="text-xs text-neutral-600 font-medium">Interviews</div>
+                    <div className="text-2xl font-bold text-pink-600 mb-1">0</div>
+                    <div className="text-xs text-neutral-600 font-medium">Applications</div>
                   </div>
                 </div>
 
@@ -372,117 +291,126 @@ const JobMatches = () => {
 
               {/* Job Matches List */}
               <div className="space-y-4">
-                {jobMatches.map((job) => (
-                  <div 
-                    key={job.id} 
-                    className={`${
-                      job.isPremium 
-                        ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300' 
-                        : 'bg-white/80 backdrop-blur-sm border border-indigo-200/50'
-                    } rounded-xl p-4 shadow-md hover:shadow-lg transition-all`}
-                  >
-                    {job.isPremium && (
-                      <div className="absolute -top-2 left-5 bg-yellow-500 text-white px-2 py-0.5 rounded-full text-xs font-medium">
-                        <i className="fa-solid fa-crown mr-1 text-xs"></i>
-                        Premium Match
-                      </div>
-                    )}
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center border border-neutral-200 flex-shrink-0">
-                        <img className="w-10 h-10 rounded-md object-cover" src={job.logo} alt={`${job.company} logo`} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <h3 className="text-base font-bold text-neutral-900 mb-0.5">{job.title}</h3>
-                            <p className="text-sm font-semibold text-neutral-700 mb-1">{job.company}</p>
-                            <div className="flex items-center gap-2 text-xs text-neutral-500 mb-2">
-                              <span className="flex items-center">
-                                <i className="fa-solid fa-map-marker-alt mr-1 text-xs"></i>
-                                {job.location}
-                              </span>
-                              <span className="flex items-center">
-                                <i className="fa-solid fa-clock mr-1 text-xs"></i>
-                                {job.posted}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getWorkTypeColor(job.workType)}`}>
-                                {job.workType}
-                              </span>
-                              <span className="bg-indigo-100 text-indigo-700 border border-indigo-300 px-2 py-0.5 rounded-full text-xs font-medium">
-                                {job.salary}
-                              </span>
-                              {job.benefits.map((benefit, index) => (
-                                <span key={index} className="bg-purple-100 text-purple-700 border border-purple-300 px-2 py-0.5 rounded-full text-xs font-medium">
-                                  {benefit}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className={`rounded-full w-12 h-12 flex items-center justify-center mb-1 ${getMatchScoreColor(job.matchScore)}`}>
-                              <span className="text-white font-bold text-sm">{job.matchScore}</span>
-                            </div>
-                            <div className="text-xs text-neutral-500">Match</div>
-                          </div>
-                        </div>
-                        
-                        <p className="text-neutral-600 mb-2 leading-relaxed text-sm">
-                          {job.description}
-                        </p>
-                        
-                        <div className="mb-2">
-                          <div className="text-xs font-medium text-neutral-600 mb-1">Required Skills:</div>
-                          <div className="flex flex-wrap gap-1">
-                            {job.skills.map((skill, index) => (
-                              <span key={index} className="bg-indigo-600 text-white px-2 py-0.5 rounded text-xs">
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <button 
-                              className="text-neutral-500 hover:text-neutral-700 transition text-xs"
-                              onClick={() => toggleSaveJob(job.id)}
-                            >
-                              <i className={`${savedJobs.has(job.id) ? 'fa-solid fa-heart text-red-500' : 'fa-regular fa-heart'} mr-1 text-xs`}></i>
-                              {savedJobs.has(job.id) ? 'Saved' : 'Save'}
-                            </button>
-                            <button className="text-neutral-500 hover:text-neutral-700 transition text-xs">
-                              <i className="fa-solid fa-share mr-1 text-xs"></i>
-                              Share
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button 
-                              className="border border-indigo-200 bg-white text-neutral-700 px-4 py-1.5 rounded-lg font-medium hover:bg-indigo-50 transition text-xs"
-                              onClick={() => navigate(`/job-details/${job.id}`)}
-                            >
-                              View Details
-                            </button>
-                            <button className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-1.5 rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transition flex items-center text-xs">
-                              <i className="fa-solid fa-paper-plane mr-1 text-xs"></i>
-                              {job.isPremium ? 'Quick Apply' : 'Apply'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                {jobsError && (
+                  <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    {jobsError}
                   </div>
-                ))}
+                )}
 
-                {/* Load More Section */}
-                <div className="text-center py-4">
-                  <button className="bg-white border border-indigo-200 text-neutral-700 px-6 py-2 rounded-lg font-medium hover:bg-indigo-50 transition flex items-center mx-auto text-xs">
-                    <i className="fa-solid fa-plus mr-1.5 text-xs"></i>
-                    Load More Matches
-                  </button>
-                  <p className="text-xs text-neutral-500 mt-2">Showing {jobMatches.length} of 247 matches</p>
-                </div>
+                {isLoadingJobs ? (
+                  <div className="text-xs text-neutral-600">Loading jobs...</div>
+                ) : jobMatches.length ? (
+                  <>
+                    {jobMatches.map((job) => (
+                      <div 
+                        key={job.id} 
+                        className={`${
+                          job.isPremium 
+                            ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300' 
+                            : 'bg-white/80 backdrop-blur-sm border border-indigo-200/50'
+                        } rounded-xl p-4 shadow-md hover:shadow-lg transition-all`}
+                      >
+                        {job.isPremium && (
+                          <div className="absolute -top-2 left-5 bg-yellow-500 text-white px-2 py-0.5 rounded-full text-xs font-medium">
+                            <i className="fa-solid fa-crown mr-1 text-xs"></i>
+                            Premium Match
+                          </div>
+                        )}
+                        <div className="flex items-start gap-4">
+                          <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center border border-neutral-200 flex-shrink-0">
+                            <img className="w-10 h-10 rounded-md object-cover" src={job.logo} alt={`${job.company} logo`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <h3 className="text-base font-bold text-neutral-900 mb-0.5">{job.title}</h3>
+                                <p className="text-sm font-semibold text-neutral-700 mb-1">{job.company}</p>
+                                <div className="flex items-center gap-2 text-xs text-neutral-500 mb-2">
+                                  <span className="flex items-center">
+                                    <i className="fa-solid fa-map-marker-alt mr-1 text-xs"></i>
+                                    {job.location}
+                                  </span>
+                                  <span className="flex items-center">
+                                    <i className="fa-solid fa-clock mr-1 text-xs"></i>
+                                    {job.posted}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getWorkTypeColor(job.workType)}`}>
+                                    {job.workType}
+                                  </span>
+                                  <span className="bg-indigo-100 text-indigo-700 border border-indigo-300 px-2 py-0.5 rounded-full text-xs font-medium">
+                                    {job.salary}
+                                  </span>
+                                  {job.benefits.map((benefit, index) => (
+                                    <span key={index} className="bg-purple-100 text-purple-700 border border-purple-300 px-2 py-0.5 rounded-full text-xs font-medium">
+                                      {benefit}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className={`rounded-full w-12 h-12 flex items-center justify-center mb-1 ${getMatchScoreColor(job.matchScore)}`}>
+                                  <span className="text-white font-bold text-sm">{job.matchScore}</span>
+                                </div>
+                                <div className="text-xs text-neutral-500">Match</div>
+                              </div>
+                            </div>
+                            
+                            <p className="text-neutral-600 mb-2 leading-relaxed text-sm">
+                              {job.description}
+                            </p>
+                            
+                            <div className="mb-2">
+                              <div className="text-xs font-medium text-neutral-600 mb-1">Required Skills:</div>
+                              <div className="flex flex-wrap gap-1">
+                                {job.skills.map((skill, index) => (
+                                  <span key={index} className="bg-indigo-600 text-white px-2 py-0.5 rounded text-xs">
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  className="text-neutral-500 hover:text-neutral-700 transition text-xs"
+                                  onClick={() => toggleSaveJob(job.id)}
+                                >
+                                  <i className={`${savedJobs.has(job.id) ? 'fa-solid fa-heart text-red-500' : 'fa-regular fa-heart'} mr-1 text-xs`}></i>
+                                  {savedJobs.has(job.id) ? 'Saved' : 'Save'}
+                                </button>
+                                <button className="text-neutral-500 hover:text-neutral-700 transition text-xs">
+                                  <i className="fa-solid fa-share mr-1 text-xs"></i>
+                                  Share
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  className="border border-indigo-200 bg-white text-neutral-700 px-4 py-1.5 rounded-lg font-medium hover:bg-indigo-50 transition text-xs"
+                                  onClick={() => navigate(`/job-details/${job.id}`)}
+                                >
+                                  View Details
+                                </button>
+                                <button className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-1.5 rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transition flex items-center text-xs">
+                                  <i className="fa-solid fa-paper-plane mr-1 text-xs"></i>
+                                  {job.isPremium ? 'Quick Apply' : 'Apply'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="text-center py-4">
+                      <p className="text-xs text-neutral-500 mt-2">Showing {jobMatches.length} published jobs</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-xs text-neutral-500">No published jobs yet.</div>
+                )}
               </div>
             </div>
           </section>

@@ -15,6 +15,10 @@ import GoogleCallback from './pages/GoogleCallback'
 import AnalysisStatus from './pages/AnalysisStatus'
 import UploadResume from './pages/UploadResume'
 import UploadVideo from './pages/UploadVideo'
+import EmployerOnboarding from './pages/EmployerOnboarding'
+import EmployerDashboard from './pages/EmployerDashboard'
+import EmployerAuth from './pages/EmployerAuth'
+import EmployerJobDetails from './pages/EmployerJobDetails'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import PublicRoute from './components/common/PublicRoute'
 
@@ -39,6 +43,11 @@ function App() {
             <Route path="/user-dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
         <Route path="/upload-resume" element={<ProtectedRoute><UploadResume /></ProtectedRoute>} />
         <Route path="/upload-video" element={<ProtectedRoute><UploadVideo /></ProtectedRoute>} />
+        <Route path="/employer-onboarding" element={<ProtectedRoute><EmployerOnboarding /></ProtectedRoute>} />
+        <Route path="/employer-dashboard" element={<ProtectedRoute><EmployerDashboard /></ProtectedRoute>} />
+        <Route path="/employer-jobs/:jobId" element={<ProtectedRoute><EmployerJobDetails /></ProtectedRoute>} />
+        <Route path="/employer-signin" element={<PublicRoute><EmployerAuth /></PublicRoute>} />
+        <Route path="/employer-signup" element={<PublicRoute><EmployerAuth /></PublicRoute>} />
         <Route path="/assessments/:id?" element={<ProtectedRoute><Assessment /></ProtectedRoute>} />
         <Route path="/create-profile" element={<ProtectedRoute><CreateProfile /></ProtectedRoute>} />
         <Route path="/import-profile" element={<ProtectedRoute><ImportProfile /></ProtectedRoute>} />

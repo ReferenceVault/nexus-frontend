@@ -20,6 +20,14 @@ export const api = {
     return handleApiError(response)
   },
 
+  async employerSignup(email, firstName, lastName, password) {
+    const response = await unauthenticatedFetch('/auth/employer/signup', {
+      method: 'POST',
+      body: JSON.stringify({ email, firstName, lastName, password }),
+    })
+    return handleApiError(response)
+  },
+
   async login(email, password) {
     const response = await unauthenticatedFetch('/auth/login', {
       method: 'POST',
@@ -157,6 +165,78 @@ export const api = {
     const response = await authenticatedFetch('/analysis/resume-optimizer', {
       method: 'POST',
       body: JSON.stringify({ resumeId, jobDescription, targetRole }),
+    })
+    return handleApiError(response)
+  },
+
+  async employerOnboard(payload) {
+    const response = await authenticatedFetch('/employers/onboard', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    return handleApiError(response)
+  },
+
+  async getEmployerProfile() {
+    const response = await authenticatedFetch('/employers/me')
+    return handleApiError(response)
+  },
+
+  async createJob(payload) {
+    const response = await authenticatedFetch('/jobs', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    return handleApiError(response)
+  },
+
+  async updateJob(jobId, payload) {
+    const response = await authenticatedFetch(`/jobs/${jobId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    return handleApiError(response)
+  },
+
+  async publishJob(jobId) {
+    const response = await authenticatedFetch(`/jobs/${jobId}/publish`, {
+      method: 'PUT',
+    })
+    return handleApiError(response)
+  },
+
+  async runJobMatching(jobId) {
+    const response = await authenticatedFetch(`/jobs/${jobId}/run-matching`, {
+      method: 'POST',
+    })
+    return handleApiError(response)
+  },
+
+  async listJobs() {
+    const response = await authenticatedFetch('/jobs')
+    return handleApiError(response)
+  },
+
+  async listPublishedJobs() {
+    const response = await unauthenticatedFetch('/jobs/public')
+    return handleApiError(response)
+  },
+
+  async getJob(jobId) {
+    const response = await authenticatedFetch(`/jobs/${jobId}`)
+    return handleApiError(response)
+  },
+
+  async getJobMatches(jobId, minScore) {
+    const query = minScore ? `?minScore=${minScore}` : ''
+    const response = await authenticatedFetch(`/jobs/${jobId}/matches${query}`)
+    return handleApiError(response)
+  },
+
+  async updateMatchStatus(matchId, status) {
+    const response = await authenticatedFetch(`/jobs/matches/${matchId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
     })
     return handleApiError(response)
   },

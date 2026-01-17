@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -7,82 +7,65 @@ import { api } from '../utils/api'
 import { useAuth } from '../hooks/useAuth'
 import ErrorMessage from '../components/common/ErrorMessage'
 import { isTokenExpired } from '../utils/apiClient'
-import { checkOnboardingComplete } from '../utils/onboarding'
 
-const CombinedAuth = () => {
+const EmployerAuth = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { login, setLoading, isLoading, error, setError, clearError, setSignupData, isAuthenticated, accessToken, user } = useAuth()
+  const { login, setLoading, isLoading, error, setError, clearError, isAuthenticated, accessToken, user, logout } = useAuth()
   const justSignedUpRef = useRef(false)
+  const isHandlingLoginRef = useRef(false)
 
-  // Determine initial tab based on route or default to 'signin'
   const [activeTab, setActiveTab] = useState(() => {
     const path = location.pathname
-    return path === '/signup' ? 'signup' : 'signin'
+    return path === '/employer-signup' ? 'signup' : 'signin'
   })
 
-  const [expandedFaq, setExpandedFaq] = useState(null)
-
-  // Update tab when route changes
   useEffect(() => {
     const path = location.pathname
-    if (path === '/signup') {
+    if (path === '/employer-signup') {
       setActiveTab('signup')
-    } else if (path === '/signin') {
+    } else if (path === '/employer-signin') {
       setActiveTab('signin')
     }
   }, [location.pathname])
 
-  // Redirect if already authenticated (but not during sign-in flow)
-  // This useEffect only runs if user is already authenticated when component mounts
-  // It should NOT interfere with the handleSignIn function's navigation
-  const isHandlingLoginRef = useRef(false)
-  
+  const checkEmployerOnboarding = async () => {
+    try {
+      const profile = await api.getEmployerProfile()
+      return !!profile
+    } catch (err) {
+      return false
+    }
+  }
+
   useEffect(() => {
-    // Skip if we just signed up
     if (justSignedUpRef.current) {
       justSignedUpRef.current = false
       return
     }
-    
-    // Skip if we're currently handling login (let handleSignIn manage navigation)
+
     if (isHandlingLoginRef.current) {
       return
     }
-    
-    // Only redirect if already authenticated (not during active login)
+
     if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
-      console.log('🔄 CombinedAuth useEffect: User already authenticated, checking onboarding...')
-      if (Array.isArray(user?.roles) && user.roles.includes('employer')) {
-        navigate('/employer-dashboard', { replace: true })
+      const roles = user?.roles || []
+      if (!roles.includes('employer')) {
         return
       }
-      const checkOnboarding = async () => {
-        try {
-          const onboardingComplete = await checkOnboardingComplete(api)
-          console.log('🔄 CombinedAuth useEffect - onboardingComplete:', onboardingComplete)
-
-          if (onboardingComplete) {
-            navigate('/user-dashboard', { replace: true })
-          } else {
-            navigate('/onboarding', { replace: true })
-          }
-        } catch (error) {
-          console.error('Error checking onboarding:', error)
-          navigate('/onboarding', { replace: true })
-        }
+      const redirectEmployer = async () => {
+        const hasOnboarded = await checkEmployerOnboarding()
+        navigate(hasOnboarded ? '/employer-dashboard' : '/employer-onboarding', { replace: true })
       }
-      checkOnboarding()
+      redirectEmployer()
     }
-  }, [isAuthenticated, accessToken, navigate, user])
+  }, [isAuthenticated, accessToken, user, navigate])
 
-  // Sign In form state
   const [signInData, setSignInData] = useState({
     email: '',
     password: '',
   })
 
-  // Sign Up form state
   const [signUpData, setSignUpData] = useState({
     firstName: '',
     lastName: '',
@@ -95,7 +78,6 @@ const CombinedAuth = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [showSignInPassword, setShowSignInPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
 
   const handleSignInInputChange = (e) => {
     const { name, value } = e.target
@@ -144,43 +126,26 @@ const CombinedAuth = () => {
     e?.preventDefault()
     setLoading(true)
     clearError()
-    isHandlingLoginRef.current = true // Prevent useEffect from interfering
-    
+    isHandlingLoginRef.current = true
+
     try {
       const response = await api.login(signInData.email, signInData.password)
-      
       login(response.user, response.tokens)
-      
-      if (Array.isArray(response.user?.roles) && response.user.roles.includes('employer')) {
-        navigate('/employer-dashboard', { replace: true })
-        return
-      }
-      
-      console.log('🔐 Login successful, checking onboarding status...')
-      
-      // Check onboarding status using centralized function
-      try {
-        const onboardingComplete = await checkOnboardingComplete(api)
-        console.log('🔐 handleSignIn - onboardingComplete:', onboardingComplete)
 
-        if (onboardingComplete) {
-          console.log('✅ Redirecting to user-dashboard')
-          navigate('/user-dashboard', { replace: true })
-        } else {
-          console.log('❌ Redirecting to onboarding')
-          navigate('/onboarding', { replace: true })
-        }
-      } catch (error) {
-        console.error('❌ Error checking onboarding status:', error)
-        navigate('/onboarding', { replace: true })
+      const roles = response.user?.roles || []
+      if (!roles.includes('employer')) {
+        logout()
+        throw new Error('Please use candidate sign in for job seeker accounts.')
       }
-    } catch (error) {
-      const errorMessage = error.message || 'Invalid email or password'
+
+      const hasOnboarded = await checkEmployerOnboarding()
+      navigate(hasOnboarded ? '/employer-dashboard' : '/employer-onboarding', { replace: true })
+    } catch (err) {
+      const errorMessage = err.message || 'Invalid email or password'
       setError(errorMessage)
       setErrors({ submit: errorMessage })
     } finally {
       setLoading(false)
-      // Reset after a delay to allow navigation to complete
       setTimeout(() => {
         isHandlingLoginRef.current = false
       }, 1000)
@@ -194,26 +159,18 @@ const CombinedAuth = () => {
     setLoading(true)
     clearError()
     try {
-      const response = await api.signup(
+      const response = await api.employerSignup(
         signUpData.email,
         signUpData.firstName,
         signUpData.lastName,
         signUpData.password
       )
-      
+
       justSignedUpRef.current = true
-      
-      setSignupData({
-        firstName: signUpData.firstName,
-        lastName: signUpData.lastName,
-        email: signUpData.email,
-      })
-      
       login(response.user, response.tokens)
-      
-      navigate('/onboarding', { replace: true })
-    } catch (error) {
-      const errorMessage = error.message || 'Signup failed. Please try again.'
+      navigate('/employer-onboarding', { replace: true })
+    } catch (err) {
+      const errorMessage = err.message || 'Signup failed. Please try again.'
       setError(errorMessage)
       setErrors({ submit: errorMessage })
     } finally {
@@ -223,14 +180,14 @@ const CombinedAuth = () => {
 
   const handleGoogleAuth = () => {
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-    window.location.href = `${API_BASE_URL}/auth/google`
+    window.location.href = `${API_BASE_URL}/auth/employer/google`
   }
 
   const switchTab = (tab) => {
     setActiveTab(tab)
     setErrors({})
     clearError()
-    navigate(tab === 'signup' ? '/signup' : '/signin', { replace: true })
+    navigate(tab === 'signup' ? '/employer-signup' : '/employer-signin', { replace: true })
   }
 
   return (
@@ -238,29 +195,22 @@ const CombinedAuth = () => {
       <Header />
       <SocialSidebar position="left" />
 
-      {/* Hero Section */}
       <main className="flex-1">
         <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 px-6 md:px-[15%] pt-11 pb-12 sm:pt-12 sm:pb-16">
-          {/* Animated Background */}
           <div className="absolute inset-0 overflow-hidden">
             <div className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
             <div className="absolute top-1/2 -left-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
             <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.15),transparent_60%),radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.12),transparent_60%),radial-gradient(circle_at_center,rgba(99,102,241,0.10),transparent_65%)]" />
           </div>
-          
+
           <div className="relative mx-auto max-w-6xl">
             <div className="grid lg:grid-cols-2 gap-8 lg:gap-10 items-start">
-              
-              {/* Left Section - Informational Panel */}
               <div className="space-y-6">
-                {/* Badge */}
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 rounded-full backdrop-blur-sm">
                   <i className="fa-solid fa-lock text-indigo-300 text-sm"></i>
-                  <span className="text-xs font-semibold">Secure Authentication</span>
+                  <span className="text-xs font-semibold">Secure Employer Access</span>
                 </div>
 
-                {/* Main Heading */}
                 <div>
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 leading-tight">
                     Welcome to{' '}
@@ -269,53 +219,37 @@ const CombinedAuth = () => {
                     </span>
                   </h1>
                   <p className="text-base md:text-lg text-slate-300 leading-relaxed">
-                    Create your account in seconds and start listing your profile to thousands of verified employers.
+                    Post jobs, review AI‑ranked candidates, and make confident hiring decisions faster.
                   </p>
                 </div>
 
-                {/* Features List */}
                 <div className="space-y-3">
-                  <div className="flex items-start gap-3 group">
-                    <div className="flex-shrink-0 w-11 h-11 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                      <i className="fa-solid fa-bolt text-white text-lg"></i>
+                  {[
+                    { icon: 'fa-bolt', title: 'Post in minutes', text: 'Create a role and start matching instantly' },
+                    { icon: 'fa-user-check', title: 'AI Shortlists', text: 'Ranked candidates based on job fit' },
+                    { icon: 'fa-chart-line', title: 'Smarter hiring', text: 'Skill gaps and fit analysis in one view' },
+                  ].map((item) => (
+                    <div key={item.title} className="flex items-start gap-3 group">
+                      <div className="flex-shrink-0 w-11 h-11 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                        <i className={`fa-solid ${item.icon} text-white text-lg`}></i>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-white mb-1 text-base">{item.title}</h3>
+                        <p className="text-slate-300 text-sm">{item.text}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-white mb-1 text-base">Quick Setup</h3>
-                      <p className="text-slate-300 text-sm">Get verified in under 2 minutes with secure authentication</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 group">
-                    <div className="flex-shrink-0 w-11 h-11 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                      <i className="fa-solid fa-lock text-white text-lg"></i>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-white mb-1 text-base">Bank-Level Security</h3>
-                      <p className="text-slate-300 text-sm">Your data is encrypted and never shared publicly</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 group">
-                    <div className="flex-shrink-0 w-11 h-11 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                      <i className="fa-solid fa-users text-white text-lg"></i>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-white mb-1 text-base">Trusted Community</h3>
-                      <p className="text-slate-300 text-sm">Join thousands of verified users on India's safest recruitment platform</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
-                {/* Testimonial Card */}
                 <div className="relative overflow-hidden rounded-xl border border-indigo-400/20 bg-white/10 backdrop-blur-sm p-5 shadow-xl shadow-indigo-500/20">
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.08),transparent_55%)]" />
                   <div className="relative flex items-start gap-3">
                     <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-                      <span className="text-white font-bold text-base">PS</span>
+                      <span className="text-white font-bold text-base">AC</span>
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-1.5 mb-1.5">
-                        <h4 className="font-semibold text-white text-sm">Priya Sharma</h4>
+                        <h4 className="font-semibold text-white text-sm">Alicia Chen</h4>
                         <div className="flex gap-0.5">
                           {[...Array(5)].map((_, i) => (
                             <i key={i} className="fa-solid fa-star text-yellow-400 text-xs"></i>
@@ -323,26 +257,20 @@ const CombinedAuth = () => {
                         </div>
                       </div>
                       <p className="text-xs text-slate-200 italic leading-relaxed">
-                        "Found my perfect job match in 5 days! The verification process made me feel completely safe."
+                        "We filled a critical role in 7 days using the AI shortlist. It saved our team weeks."
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Right Section - Sign In / Sign Up Forms */}
               <div className="relative">
                 <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-indigo-200/50 p-6 md:p-8 overflow-hidden">
-                  {/* Decorative gradient */}
                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-transparent to-purple-100/30 pointer-events-none" />
-                  
                   <div className="relative">
-                    {/* Tab Switcher */}
                     <div className="flex gap-1.5 mb-6 bg-indigo-100/50 p-1.5 rounded-lg border border-indigo-200/50">
                       <button
-                        onClick={() => {
-                          switchTab('signin')
-                        }}
+                        onClick={() => switchTab('signin')}
                         className={`flex-1 py-2.5 px-3 rounded-lg font-semibold text-sm transition-all duration-300 ${
                           activeTab === 'signin'
                             ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-105'
@@ -352,9 +280,7 @@ const CombinedAuth = () => {
                         Sign In
                       </button>
                       <button
-                        onClick={() => {
-                          switchTab('signup')
-                        }}
+                        onClick={() => switchTab('signup')}
                         className={`flex-1 py-2.5 px-3 rounded-lg font-semibold text-sm transition-all duration-300 ${
                           activeTab === 'signup'
                             ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-105'
@@ -367,12 +293,9 @@ const CombinedAuth = () => {
 
                     {activeTab === 'signin' ? (
                       <>
-                        {/* Heading */}
                         <h2 className="text-2xl font-bold text-neutral-900 text-center mb-6">
-                          Welcome Back
+                          Employer Sign In
                         </h2>
-
-                        {/* Form */}
                         <form onSubmit={handleSignIn} className="space-y-4">
                           <div>
                             <label htmlFor="email" className="block text-sm font-semibold text-neutral-700 mb-2">
@@ -426,80 +349,31 @@ const CombinedAuth = () => {
 
                           <ErrorMessage error={error || errors.submit} onDismiss={clearError} />
 
-                          {/* Remember me and Forgot password */}
-                          <div className="flex items-center justify-between">
-                            <label className="flex items-center gap-2 cursor-pointer group">
-                              <input
-                                type="checkbox"
-                                checked={rememberMe}
-                                onChange={(e) => setRememberMe(e.target.checked)}
-                                className="w-4 h-4 text-primary border-neutral-300 rounded focus:ring-primary cursor-pointer"
-                              />
-                              <span className="text-sm text-neutral-700 group-hover:text-neutral-900">Remember me</span>
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => navigate('/forgot-password')}
-                              className="text-sm font-semibold text-primary hover:text-indigo-700 transition-colors"
-                            >
-                              Forgot password?
-                            </button>
-                          </div>
-
-                          {/* Submit Button */}
                           <button
                             type="submit"
                             disabled={!signInData.email || !signInData.password || isLoading}
-                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:shadow-indigo-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:shadow-indigo-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                           >
-                            {isLoading ? (
-                              <>
-                                <i className="fa-solid fa-spinner fa-spin"></i>
-                                <span>Signing in...</span>
-                              </>
-                            ) : (
-                              <span>Sign In</span>
-                            )}
+                            {isLoading ? 'Signing in...' : 'Sign In'}
                           </button>
-                        </form>
 
-                        {/* Or continue with */}
-                        <div className="mt-6">
-                          <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                              <div className="w-full border-t border-neutral-200"></div>
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                              <span className="px-3 bg-white/90 text-neutral-500 font-medium">Or continue with</span>
-                            </div>
+                          <div className="mt-4">
+                            <button
+                              type="button"
+                              onClick={handleGoogleAuth}
+                              className="w-full inline-flex items-center justify-center py-3.5 px-6 border-2 border-neutral-300 rounded-xl bg-white text-neutral-700 font-semibold hover:bg-indigo-50 hover:border-primary transition-all duration-300"
+                            >
+                              <i className="fa-brands fa-google text-indigo-600 mr-2 text-sm"></i>
+                              <span>Sign in with Google</span>
+                            </button>
                           </div>
-                        </div>
-
-                        {/* Sign in with Google */}
-                        <div className="mt-4">
-                          <button
-                            type="button"
-                            onClick={handleGoogleAuth}
-                            className="w-full inline-flex items-center justify-center py-3.5 px-6 border-2 border-neutral-300 rounded-xl bg-white text-neutral-700 font-semibold hover:bg-indigo-50 hover:border-primary transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                          >
-                            <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
-                              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                            </svg>
-                            <span>Sign in with Google</span>
-                          </button>
-                        </div>
+                        </form>
                       </>
                     ) : (
                       <>
-                        {/* Heading */}
                         <h2 className="text-3xl font-bold text-neutral-900 text-center mb-8">
-                          Create Account
+                          Create Employer Account
                         </h2>
-
-                        {/* Form */}
                         <form onSubmit={handleSignUp} className="space-y-5">
                           <div className="grid grid-cols-2 gap-4">
                             <div>
@@ -520,9 +394,6 @@ const CombinedAuth = () => {
                                 placeholder="John"
                                 disabled={isLoading}
                               />
-                              {errors.firstName && (
-                                <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>
-                              )}
                             </div>
                             <div>
                               <label htmlFor="signup-lastName" className="block text-sm font-semibold text-neutral-700 mb-2">
@@ -542,9 +413,6 @@ const CombinedAuth = () => {
                                 placeholder="Doe"
                                 disabled={isLoading}
                               />
-                              {errors.lastName && (
-                                <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>
-                              )}
                             </div>
                           </div>
 
@@ -563,12 +431,9 @@ const CombinedAuth = () => {
                                   ? 'border-red-400 focus:ring-red-400 focus:border-red-400' 
                                   : 'border-neutral-200 focus:ring-primary focus:border-primary'
                               } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'bg-white/80 hover:border-indigo-300'}`}
-                              placeholder="Enter your email"
+                              placeholder="you@company.com"
                               disabled={isLoading}
                             />
-                            {errors.email && (
-                              <p className="text-xs text-red-500 mt-1">{errors.email}</p>
-                            )}
                           </div>
 
                           <div>
@@ -637,69 +502,16 @@ const CombinedAuth = () => {
 
                           <ErrorMessage error={error || errors.submit} onDismiss={clearError} />
 
-                          {/* Submit Button */}
                           <button
                             type="submit"
                             disabled={!signUpData.firstName || !signUpData.lastName || !signUpData.email || !signUpData.password || !signUpData.confirmPassword || isLoading}
-                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:shadow-indigo-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:shadow-indigo-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                           >
-                            {isLoading ? (
-                              <>
-                                <i className="fa-solid fa-spinner fa-spin"></i>
-                                <span>Creating account...</span>
-                              </>
-                            ) : (
-                              <span>Create Account</span>
-                            )}
+                            {isLoading ? 'Creating account...' : 'Create Employer Account'}
                           </button>
                         </form>
-
-                        {/* Or continue with */}
-                        <div className="mt-6">
-                          <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                              <div className="w-full border-t border-neutral-200"></div>
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                              <span className="px-3 bg-white/90 text-neutral-500 font-medium">Or continue with</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Sign up with Google */}
-                        <div className="mt-4">
-                          <button
-                            type="button"
-                            onClick={handleGoogleAuth}
-                            className="w-full inline-flex items-center justify-center py-3.5 px-6 border-2 border-neutral-300 rounded-xl bg-white text-neutral-700 font-semibold hover:bg-indigo-50 hover:border-primary transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                          >
-                            <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
-                              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                            </svg>
-                            <span>Sign up with Google</span>
-                          </button>
-                        </div>
                       </>
                     )}
-
-                    {/* Security Badges */}
-                    <div className="mt-6 pt-6 border-t border-neutral-200 flex justify-center gap-6">
-                      <div className="flex items-center gap-2">
-                        <i className="fa-solid fa-lock text-primary text-sm"></i>
-                        <span className="text-xs text-neutral-600 font-medium">Secure</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <i className="fa-solid fa-shield-halved text-primary text-sm"></i>
-                        <span className="text-xs text-neutral-600 font-medium">Encrypted</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <i className="fa-solid fa-check text-primary text-sm"></i>
-                        <span className="text-xs text-neutral-600 font-medium">256-bit SSL</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -707,16 +519,15 @@ const CombinedAuth = () => {
           </div>
         </section>
 
-        {/* Statistics Section */}
         <section className="relative bg-gradient-to-br from-slate-50 to-white py-12 px-6 md:px-[15%]">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white via-transparent to-transparent" />
           <div className="relative max-w-6xl mx-auto">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               {[
-                { value: '50K+', label: 'Verified Users', icon: 'fa-users' },
-                { value: '15K+', label: 'Active Listings', icon: 'fa-check-circle' },
-                { value: '4.8', label: 'User Rating', icon: 'fa-star', isRating: true },
-                { value: '₹2Cr+', label: 'Brokerage Saved', icon: 'fa-bolt' }
+                { value: '2K+', label: 'Employer Teams', icon: 'fa-building' },
+                { value: '18K+', label: 'Open Roles', icon: 'fa-briefcase' },
+                { value: '4.7', label: 'Hiring Satisfaction', icon: 'fa-star', isRating: true },
+                { value: '65%', label: 'Faster Shortlists', icon: 'fa-bolt' }
               ].map((stat, index) => (
                 <div 
                   key={index}
@@ -749,42 +560,39 @@ const CombinedAuth = () => {
           </div>
         </section>
 
-        {/* Why Verify Section */}
         <section className="relative bg-white py-16 px-6 md:px-[15%]">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-slate-50 via-transparent to-transparent" />
           <div className="relative max-w-6xl mx-auto">
-            {/* Heading */}
             <div className="text-center mb-12">
               <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-100/50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-indigo-700 mb-4">
-                Why Verify?
+                Employer Benefits
               </span>
               <h2 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-3">
-                Your safety and privacy come first
+                Hire with confidence
               </h2>
               <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
-                We've built multiple layers of security to keep you and your information safe
+                Verified candidate data and AI insights help you make faster, better decisions.
               </p>
             </div>
 
-            {/* Feature Cards */}
             <div className="grid md:grid-cols-3 gap-6">
               {[
                 {
-                  icon: 'fa-check-circle',
-                  title: 'Verified Community',
-                  description: 'All users are verified with secure authentication for maximum safety',
+                  icon: 'fa-user-check',
+                  title: 'Verified profiles',
+                  description: 'Review candidate insights, skills, and fit in one view',
                   color: 'from-green-500 to-green-600'
                 },
                 {
-                  icon: 'fa-lock',
-                  title: 'Data Privacy',
-                  description: 'Your information stays private and is never shared with other users',
+                  icon: 'fa-filter',
+                  title: 'Smarter filters',
+                  description: 'Shortlists prioritize required skills and job match',
                   color: 'from-indigo-500 to-purple-600'
                 },
                 {
                   icon: 'fa-shield-halved',
-                  title: 'Data Protection',
-                  description: 'Bank-level encryption ensures your personal information stays secure',
+                  title: 'Secure hiring',
+                  description: 'Enterprise‑grade security for employer and candidate data',
                   color: 'from-purple-500 to-pink-600'
                 }
               ].map((feature, index) => (
@@ -808,38 +616,35 @@ const CombinedAuth = () => {
           </div>
         </section>
 
-        {/* Testimonials Section */}
         <section className="relative bg-gradient-to-br from-slate-50 to-white py-16 px-6 md:px-[15%]">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white via-transparent to-transparent" />
           <div className="relative max-w-6xl mx-auto">
-            {/* Header */}
             <div className="text-center mb-12">
               <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-100/50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-indigo-700 mb-4">
                 Testimonials
               </span>
               <h2 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-3">
-                What our users say
+                What employers say
               </h2>
               <p className="text-lg text-neutral-600">
-                Trusted by thousands of job seekers
+                Trusted by growing teams across industries
               </p>
             </div>
 
-            {/* Testimonial Cards */}
             <div className="grid md:grid-cols-2 gap-6">
               {[
                 {
-                  name: 'Rahul Verma',
-                  location: 'Bangalore',
-                  quote: '"The verification process was so quick and easy! I felt safe knowing everyone on the platform is verified. Found my dream job in just 3 days."',
-                  initials: 'RV',
+                  name: 'Maya Singh',
+                  location: 'Toronto',
+                  quote: '"The AI shortlist helped us focus on the top 10% of applicants in hours, not days."',
+                  initials: 'MS',
                   gradient: 'from-blue-500 to-indigo-600'
                 },
                 {
-                  name: 'Anjali Desai',
-                  location: 'Pune',
-                  quote: '"Love that my data stays private! The secure authentication gave me confidence that I\'m dealing with a trusted platform."',
-                  initials: 'AD',
+                  name: 'Daniel Kim',
+                  location: 'Vancouver',
+                  quote: '"We reduced time‑to‑hire by 40% and improved the quality of interviews."',
+                  initials: 'DK',
                   gradient: 'from-purple-500 to-pink-600'
                 }
               ].map((testimonial, index) => (
@@ -873,67 +678,60 @@ const CombinedAuth = () => {
           </div>
         </section>
 
-        {/* FAQ Section */}
         <section className="relative bg-white py-16 px-6 md:px-[15%]">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-slate-50 via-transparent to-transparent" />
           <div className="relative max-w-4xl mx-auto">
-            {/* Header */}
             <div className="text-center mb-12">
               <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-100/50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-indigo-700 mb-4">
                 FAQ
               </span>
               <h2 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-3">
-                Common questions
+                Employer questions
               </h2>
               <p className="text-lg text-neutral-600">
-                Everything about our platform
+                Everything about employer accounts and job posting
               </p>
             </div>
 
-            {/* FAQ Items */}
             <div className="space-y-4">
               {[
                 {
-                  question: 'Why do I need to create an account?',
-                  answer: 'Creating an account ensures all users are verified, creating a safe and trusted community. It also helps us prevent spam and protect your information.'
+                  question: 'How long does it take to post a job?',
+                  answer: 'Most employers can publish a role in under 5 minutes using our guided flow.'
                 },
                 {
-                  question: 'Will my information be shared publicly?',
-                  answer: 'Never! Your personal information is kept completely private and encrypted. Other users cannot see it. All communication happens through secure channels.'
+                  question: 'How are candidates matched?',
+                  answer: 'We compare your job requirements with candidate skills and resume insights to generate a fit score.'
                 },
                 {
-                  question: 'How secure is my data?',
-                  answer: 'We use bank-level 256-bit SSL encryption to protect your information. Your data is stored on secure servers and never shared with third parties.'
+                  question: 'Can I edit a job after publishing?',
+                  answer: 'Yes. Update the job details and we will refresh the AI matches for you.'
                 },
                 {
-                  question: 'Can I delete my account?',
-                  answer: 'Yes! You can delete your account at any time from your profile settings. All your data will be permanently removed from our systems.'
+                  question: 'Is candidate data secure?',
+                  answer: 'Yes. We use encryption and strict access controls to protect candidate information.'
                 }
-              ].map((faq, index) => {
-                const isExpanded = expandedFaq === index
-                return (
-                  <div
-                    key={index}
-                    className="relative overflow-hidden rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
-                    onClick={() => setExpandedFaq(isExpanded ? null : index)}
-                  >
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.05),transparent_55%)]" />
-                    <div className="relative p-6">
-                      <div className="flex items-center justify-between gap-4">
-                        <h3 className={`font-semibold text-neutral-900 text-lg group-hover:text-primary transition-colors flex-1 ${isExpanded ? 'text-primary' : ''}`}>
-                          {faq.question}
-                        </h3>
-                        <i className={`fa-solid fa-chevron-down text-primary flex-shrink-0 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}></i>
-                      </div>
-                      <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-96 mt-4' : 'max-h-0 mt-0'}`}>
-                        <p className="text-neutral-600 leading-relaxed">
-                          {faq.answer}
-                        </p>
-                      </div>
+              ].map((faq, index) => (
+                <div
+                  key={index}
+                  className="relative overflow-hidden rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
+                >
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.05),transparent_55%)]" />
+                  <div className="relative p-6">
+                    <div className="flex items-center justify-between gap-4">
+                      <h3 className="font-semibold text-neutral-900 text-lg group-hover:text-primary transition-colors flex-1">
+                        {faq.question}
+                      </h3>
+                      <i className="fa-solid fa-chevron-down text-primary flex-shrink-0"></i>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-neutral-600 leading-relaxed">
+                        {faq.answer}
+                      </p>
                     </div>
                   </div>
-                )
-              })}
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -944,4 +742,4 @@ const CombinedAuth = () => {
   )
 }
 
-export default CombinedAuth
+export default EmployerAuth

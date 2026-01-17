@@ -9,6 +9,7 @@ import SocialSidebar from '../components/SocialSidebar'
 import DashboardHeader from '../components/DashboardHeader'
 import DashboardSidebar from '../components/DashboardSidebar'
 import { useAuth } from '../hooks/useAuth'
+import { getCandidateMenuItems, getCandidateQuickActions } from '../utils/candidateSidebar'
 
 const AnalysisStatus = () => {
   const { id } = useParams()
@@ -263,46 +264,12 @@ const AnalysisStatus = () => {
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           activeView="assessments"
-          menuItems={[
-            {
-              id: 'overview',
-              label: 'Overview',
-              icon: 'fa-solid fa-grid-2',
-              onClick: () => navigate('/user-dashboard')
-            },
-            {
-              id: 'resumes',
-              label: 'My Resumes',
-              icon: 'fa-solid fa-file-pdf',
-              badge: resumes.length > 0 ? resumes.length : undefined,
-              onClick: () => navigate('/user-dashboard')
-            },
-            {
-              id: 'videos',
-              label: 'Video Introductions',
-              icon: 'fa-solid fa-video',
-              badge: videos.length > 0 ? videos.length : undefined,
-              onClick: () => navigate('/user-dashboard')
-            },
-            {
-              id: 'assessments',
-              label: 'Assessments',
-              icon: 'fa-solid fa-clipboard-check',
-              onClick: () => navigate('/assessments')
-            },
-            {
-              id: 'job-matches',
-              label: 'Job Matches',
-              icon: 'fa-solid fa-briefcase',
-              onClick: () => navigate('/job-matches')
-            }
-          ]}
-          quickFilters={[
-            { label: 'Upload Resume', icon: 'fa-solid fa-upload', onClick: () => navigate('/upload-resume') },
-            { label: 'Upload Video', icon: 'fa-solid fa-video', onClick: () => navigate('/upload-video') },
-            { label: 'Take Assessment', icon: 'fa-solid fa-clipboard-question', onClick: () => navigate('/assessments') },
-            { label: 'Browse Jobs', icon: 'fa-solid fa-search', onClick: () => navigate('/job-matches') }
-          ]}
+          menuItems={getCandidateMenuItems({
+            navigate,
+            resumeCount: resumes.length,
+            videoCount: videos.length,
+          })}
+          quickFilters={getCandidateQuickActions(navigate)}
         />
 
         <main className="flex-1 pr-11 lg:pr-14">

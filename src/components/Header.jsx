@@ -17,10 +17,12 @@ const Header = ({
   const [onboardingComplete, setOnboardingComplete] = useState(null)
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(false)
   
-  // Check onboarding completion
+  const isEmployer = Array.isArray(user?.roles) && user.roles.includes('employer')
+
+  // Check onboarding completion (candidate only)
   useEffect(() => {
     const checkOnboarding = async () => {
-      if (!isAuthenticated) {
+      if (!isAuthenticated || isEmployer) {
         setOnboardingComplete(null)
         return
       }
@@ -38,7 +40,7 @@ const Header = ({
     }
 
     checkOnboarding()
-  }, [isAuthenticated])
+  }, [isAuthenticated, isEmployer])
   
   // Determine if we should show user header
   // 1. If userMode is explicitly set, use it
@@ -50,7 +52,9 @@ const Header = ({
                           location.pathname.startsWith('/create-profile') ||
                           location.pathname.startsWith('/import-profile') ||
                           location.pathname.startsWith('/job-matches') ||
-                          location.pathname.startsWith('/job-details')
+                          location.pathname.startsWith('/job-details') ||
+                          location.pathname.startsWith('/employer-dashboard') ||
+                          location.pathname.startsWith('/employer-onboarding')
   
   const showUserHeader = userMode !== undefined 
     ? userMode 
@@ -63,7 +67,7 @@ const Header = ({
   // Disable navigation if onboarding is not complete
   // Only allow navigation if onboarding is explicitly complete (true)
   // Block if null (checking), false (incomplete), or undefined
-  const canNavigate = onboardingComplete === true
+  const canNavigate = isEmployer ? true : onboardingComplete === true
   
   // Get user info from auth state
   const displayName = userName || user?.firstName || user?.name || 'User'
@@ -99,17 +103,22 @@ const Header = ({
           <>
             {/* User nav */}
             <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-neutral-800">
-              {[
-                { name: 'Dashboard', path: '/user-dashboard' },
-                { name: 'Job Matches', path: '/job-matches' },
-                { name: 'Assessments', path: '/assessments' },
-                { name: 'Applications', path: '#' },
-                { name: 'Messages', path: '#' },
-                { name: 'Profile', path: '#' }
-              ].map((item) => {
-                // Disable ALL menu items if onboarding is not explicitly complete
-                // Only enable if onboardingComplete === true
-                const isDisabled = onboardingComplete !== true
+              {(isEmployer
+                ? [
+                    { name: 'Dashboard', path: '/employer-dashboard' },
+                    { name: 'Post Job', path: '/employer-dashboard' },
+                    { name: 'Shortlist', path: '/employer-dashboard' },
+                  ]
+                : [
+                    { name: 'Dashboard', path: '/user-dashboard' },
+                    { name: 'Job Matches', path: '/job-matches' },
+                    { name: 'Assessments', path: '/assessments' },
+                    { name: 'Applications', path: '#' },
+                    { name: 'Messages', path: '#' },
+                    { name: 'Profile', path: '#' },
+                  ]
+              ).map((item) => {
+                const isDisabled = !isEmployer && onboardingComplete !== true
                 const isComingSoon = item.path === '#'
                 return (
                   <button
@@ -117,19 +126,14 @@ const Header = ({
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
-                      
-                      // If onboarding not complete, redirect to onboarding
+
                       if (isDisabled) {
                         navigate('/onboarding', { replace: true })
                         return
                       }
-                      
-                      // If coming soon, do nothing (but button is still enabled for visual consistency)
                       if (isComingSoon) {
                         return
                       }
-                      
-                      // Navigate to the path
                       navigate(item.path)
                     }}
                     disabled={isDisabled}
@@ -142,7 +146,7 @@ const Header = ({
                             ? 'text-neutral-600 opacity-90 cursor-default hover:text-neutral-800'
                             : 'hover:text-indigo-600 transition cursor-pointer text-neutral-800'
                     }`}
-                    title={isDisabled ? 'Complete onboarding (upload resume and video) to access this page' : isComingSoon ? 'Coming soon' : ''}
+                    title={isDisabled ? 'Complete onboarding to access this page' : isComingSoon ? 'Coming soon' : ''}
                   >
                     {item.name}
                   </button>
@@ -195,7 +199,12 @@ const Header = ({
                   <i className="fa-solid fa-chevron-down ml-2 text-sm"></i>
                 </button>
                 <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-neutral-50 py-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                  <span className="block px-6 py-3 text-neutral-900 hover:bg-neutral-50 hover:text-primary transition cursor-pointer">Post Jobs</span>
+                  <span
+                    className="block px-6 py-3 text-neutral-900 hover:bg-neutral-50 hover:text-primary transition cursor-pointer"
+                    onClick={() => navigate('/employer-signin')}
+                  >
+                    Post Jobs
+                  </span>
                   <span className="block px-6 py-3 text-neutral-900 hover:bg-neutral-50 hover:text-primary transition cursor-pointer">Talent Pool</span>
                   <span className="block px-6 py-3 text-neutral-900 hover:bg-neutral-50 hover:text-primary transition cursor-pointer">Assessment Tools</span>
                   <span className="block px-6 py-3 text-neutral-900 hover:bg-neutral-50 hover:text-primary transition cursor-pointer">Enterprise</span>
@@ -211,7 +220,7 @@ const Header = ({
                 <>
                   <button 
                     className="bg-white border border-neutral-200 text-neutral-900 px-2.5 py-1.5 rounded-lg text-sm font-medium hover:bg-neutral-50 transition flex items-center shadow-sm"
-                    onClick={() => navigate('/create-profile')}
+                    onClick={() => navigate('/employer-signin')}
                   >
                     <div className="w-4 h-4 bg-neutral-900 rounded-full flex items-center justify-center mr-1.5">
                       <i className="fa-solid fa-plus text-white text-[10px]"></i>

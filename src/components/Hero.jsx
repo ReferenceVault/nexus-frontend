@@ -84,7 +84,7 @@ const Hero = () => {
               <div className="flex flex-wrap gap-2.5">
                 <button 
                   className="bg-white text-indigo-600 hover:bg-indigo-50 shadow-lg px-3 py-2 rounded-lg text-sm font-medium transition flex items-center"
-                  onClick={() => navigate('/create-profile')}
+                  onClick={() => navigate('/employer-signin')}
                 >
                   Post a Job for Free • Discover AI‑Verified Talent
                   <i className="fa-solid fa-arrow-right w-3.5 h-3.5 ml-1.5"></i>

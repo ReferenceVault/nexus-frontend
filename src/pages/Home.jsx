@@ -20,14 +20,15 @@ import { isTokenExpired } from '../utils/apiClient'
 const Home = () => {
   useScrollEffect()
   const navigate = useNavigate()
-  const { isAuthenticated, accessToken } = useAuth()
+  const { isAuthenticated, accessToken, user } = useAuth()
+  const isEmployer = Array.isArray(user?.roles) && user.roles.includes('employer')
 
   // Redirect authenticated users to user dashboard
   useEffect(() => {
     if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
-      navigate('/user-dashboard', { replace: true })
+      navigate(isEmployer ? '/employer-dashboard' : '/user-dashboard', { replace: true })
     }
-  }, [isAuthenticated, accessToken, navigate])
+  }, [isAuthenticated, accessToken, isEmployer, navigate])
 
   // Don't render home page content if authenticated (will redirect)
   if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {

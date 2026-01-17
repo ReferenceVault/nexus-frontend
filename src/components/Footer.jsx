@@ -101,7 +101,7 @@ const Footer = () => {
           <div>
             <h4 className="font-semibold text-neutral-900 mb-4 text-sm">For Employers</h4>
             <ul className="space-y-2.5">
-              <li>{renderFooterLink('Post Jobs')}</li>
+              <li>{renderFooterLink('Post Jobs', () => navigate('/employer-signin'))}</li>
               <li>{renderFooterLink('Talent Pool')}</li>
               <li>{renderFooterLink('Assessment Tools')}</li>
               <li>{renderFooterLink('Enterprise')}</li>

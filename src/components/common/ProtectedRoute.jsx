@@ -6,12 +6,18 @@ import { checkOnboardingComplete } from '../../utils/onboarding'
 import { api } from '../../utils/api'
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, isLoading, accessToken, refreshToken } = useAuth()
+  const { isAuthenticated, isLoading, accessToken, refreshToken, user } = useAuth()
   const [isValidating, setIsValidating] = useState(true)
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(false)
   const [onboardingComplete, setOnboardingComplete] = useState(null)
+  const [isCheckingEmployer, setIsCheckingEmployer] = useState(false)
+  const [employerProfileComplete, setEmployerProfileComplete] = useState(null)
   const location = useLocation()
   
+  const isEmployer = Array.isArray(user?.roles) && user.roles.includes('employer')
+  const isEmployerRoute = location.pathname.startsWith('/employer')
+  const isEmployerOnboardingRoute = location.pathname.startsWith('/employer-onboarding')
+
   // Routes that don't require onboarding completion
   const onboardingRoutes = ['/onboarding', '/assessments', '/analysis']
   const isOnboardingRoute = onboardingRoutes.some(route => location.pathname.startsWith(route))
@@ -47,9 +53,15 @@ const ProtectedRoute = ({ children }) => {
     validateToken()
   }, [accessToken, refreshToken])
 
-  // Check onboarding completion for non-onboarding routes
+  // Check onboarding completion for non-onboarding routes (candidates)
   useEffect(() => {
     const checkOnboarding = async () => {
+      if (isEmployer) {
+        setIsCheckingOnboarding(false)
+        setOnboardingComplete(null)
+        return
+      }
+
       // Skip check if on onboarding route
       if (isOnboardingRoute) {
         setIsCheckingOnboarding(false)
@@ -88,9 +100,55 @@ const ProtectedRoute = ({ children }) => {
       setOnboardingComplete(null)
       setIsCheckingOnboarding(false)
     }
-  }, [isAuthenticated, isValidating, isOnboardingRoute, location.pathname])
+  }, [isAuthenticated, isValidating, isOnboardingRoute, location.pathname, isEmployer])
 
-  if (isLoading || isValidating || isCheckingOnboarding) {
+  // Check employer onboarding for employer routes
+  useEffect(() => {
+    const checkEmployerProfile = async () => {
+      if (!isEmployer || !isEmployerRoute) {
+        setIsCheckingEmployer(false)
+        setEmployerProfileComplete(null)
+        return
+      }
+
+      if (isEmployerOnboardingRoute) {
+        setIsCheckingEmployer(false)
+        setEmployerProfileComplete(true)
+        return
+      }
+
+      if (!isAuthenticated || isValidating) {
+        setIsCheckingEmployer(false)
+        return
+      }
+
+      setIsCheckingEmployer(true)
+      try {
+        await api.getEmployerProfile()
+        setEmployerProfileComplete(true)
+      } catch (error) {
+        setEmployerProfileComplete(false)
+      } finally {
+        setIsCheckingEmployer(false)
+      }
+    }
+
+    if (!isValidating && isAuthenticated) {
+      checkEmployerProfile()
+    } else if (!isAuthenticated) {
+      setEmployerProfileComplete(null)
+      setIsCheckingEmployer(false)
+    }
+  }, [
+    isEmployer,
+    isEmployerRoute,
+    isEmployerOnboardingRoute,
+    isAuthenticated,
+    isValidating,
+    location.pathname,
+  ])
+
+  if (isLoading || isValidating || isCheckingOnboarding || isCheckingEmployer) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
         <div className="text-center">
@@ -104,7 +162,19 @@ const ProtectedRoute = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/signin" replace />
+    return <Navigate to={isEmployerRoute ? '/employer-signin' : '/signin'} replace />
+  }
+
+  if (isEmployerRoute) {
+    if (isEmployerOnboardingRoute) {
+      return children
+    }
+
+    if (employerProfileComplete === false) {
+      return <Navigate to="/employer-onboarding" replace />
+    }
+
+    return children
   }
 
   // For onboarding, assessment, and analysis routes, always allow access

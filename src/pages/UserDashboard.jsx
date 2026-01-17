@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import Footer from '../components/Footer'
 import SocialSidebar from '../components/SocialSidebar'
 import DashboardHeader from '../components/DashboardHeader'
@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth'
 
 const UserDashboard = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, logout, updateUser, isAuthenticated, accessToken } = useAuth()
   const profileFormRef = useRef(null)
   
@@ -103,6 +104,15 @@ const UserDashboard = () => {
       setOptimizerResumeId(resumes[0].id)
     }
   }, [resumes, optimizerResumeId])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const tab = params.get('tab')
+    const allowedTabs = ['overview', 'resumes', 'resume-optimizer', 'videos', 'profile']
+    if (tab && allowedTabs.includes(tab) && tab !== activeView) {
+      setActiveView(tab)
+    }
+  }, [location.search, activeView])
 
   // Fetch profile when profile view is active
   useEffect(() => {

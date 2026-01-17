@@ -11,8 +11,22 @@ const GoogleCallback = () => {
   const { login } = useAuth()
   const processedRef = useRef(false)
 
-  const checkOnboardingAndRedirect = async () => {
+  const checkOnboardingAndRedirect = async (isEmployer = false) => {
     try {
+      if (isEmployer) {
+        try {
+          const profile = await api.getEmployerProfile()
+          if (profile) {
+            navigate('/employer-dashboard', { replace: true })
+            return
+          }
+        } catch (error) {
+          // Fall through to onboarding redirect
+        }
+        navigate('/employer-onboarding', { replace: true })
+        return
+      }
+
       const userProfile = await api.getCurrentUser()
       
       // Check if onboarding is complete
@@ -64,6 +78,7 @@ const GoogleCallback = () => {
     
     // Extract code from URL query params
     const code = searchParams.get('code')
+    const state = searchParams.get('state')
 
     if (!code) {
       processedRef.current = true
@@ -77,7 +92,12 @@ const GoogleCallback = () => {
     const processCallback = async () => {
       try {
         // Exchange code for tokens and user data
-        const response = await unauthenticatedFetch('/auth/google/callback', {
+        const isEmployerState = state === 'employer'
+        const callbackPath = isEmployerState
+          ? '/auth/employer/google/callback'
+          : '/auth/google/callback'
+
+        const response = await unauthenticatedFetch(callbackPath, {
           method: 'POST',
           body: JSON.stringify({ code }),
         })
@@ -90,11 +110,12 @@ const GoogleCallback = () => {
           refreshToken: result.tokens.refreshToken,
         })
 
+        const isEmployerUser = Array.isArray(result.user?.roles) && result.user.roles.includes('employer')
         // Check onboarding and redirect
-        await checkOnboardingAndRedirect()
+        await checkOnboardingAndRedirect(isEmployerState || isEmployerUser)
       } catch (error) {
         console.error('Error processing Google callback:', error)
-        navigate('/signin', { replace: true })
+        navigate(state === 'employer' ? '/employer-signin' : '/signin', { replace: true })
       }
     }
 
