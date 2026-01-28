@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import Header from '../components/Header'
-import { setOnboardingStatus, OnboardingStatus, completeOnboarding, getOnboardingStatus } from '../utils/onboarding'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import Footer from '../components/Footer'
+import SocialSidebar from '../components/SocialSidebar'
+import DashboardHeader from '../components/DashboardHeader'
+import { setOnboardingStatus, OnboardingStatus, completeOnboarding, getOnboardingStatus, checkOnboardingComplete } from '../utils/onboarding'
 import { useAuth } from '../hooks/useAuth'
+import { useLogout } from '../hooks/useLogout'
 import { api } from '../utils/api'
 import ErrorMessage from '../components/common/ErrorMessage'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 
 const Onboarding = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { signupData, user, updateUser, accessToken, isAuthenticated } = useAuth()
+  const handleLogout = useLogout('/signin')
   const [currentStep, setCurrentStep] = useState(1)
   const [errors, setErrors] = useState({})
   const [isSaving, setIsSaving] = useState(false)
@@ -24,7 +29,12 @@ const Onboarding = () => {
   const [mediaRecorder, setMediaRecorder] = useState(null)
   const [videoStream, setVideoStream] = useState(null)
   const [uploadedResumeId, setUploadedResumeId] = useState(null)
+  const [uploadedResumeInfo, setUploadedResumeInfo] = useState(null) // Store resume file info
   const [uploadedVideoId, setUploadedVideoId] = useState(null)
+  const [uploadedVideoInfo, setUploadedVideoInfo] = useState(null) // Store video file info
+  const [storedResumes, setStoredResumes] = useState(null) // Cache resumes data
+  const [storedVideos, setStoredVideos] = useState(null) // Cache videos data
+  const [storedUserProfile, setStoredUserProfile] = useState(null) // Cache user profile
   const [formData, setFormData] = useState({
     // Step 1: Basic Information
     firstName: '',
@@ -42,6 +52,35 @@ const Onboarding = () => {
     videoFile: null
   })
 
+  // Prevent browser back navigation during onboarding
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken) {
+      return
+    }
+
+    // Push state to prevent back navigation
+    window.history.pushState(null, '', '/onboarding')
+    
+    const handlePopState = (e) => {
+      // Check if onboarding is complete before allowing navigation
+      checkOnboardingComplete(api).then((complete) => {
+        if (!complete) {
+          // Force user to stay on onboarding - push state again
+          window.history.pushState(null, '', '/onboarding')
+        }
+      }).catch(() => {
+        // On error, keep user on onboarding
+        window.history.pushState(null, '', '/onboarding')
+      })
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [isAuthenticated, accessToken])
+
   useEffect(() => {
     // Check onboarding progress and set current step
     const checkOnboardingProgress = async () => {
@@ -51,8 +90,12 @@ const Onboarding = () => {
       }
 
       try {
-        // Get user profile to check step 1 completion
-        const userProfile = await api.getCurrentUser()
+        // Get user profile to check step 1 completion (only if not cached)
+        let userProfile = storedUserProfile
+        if (!userProfile) {
+          userProfile = await api.getCurrentUser()
+          setStoredUserProfile(userProfile)
+        }
         
         // Check if step 1 is complete (has firstName, lastName, phone, addressInformation)
         const step1Complete = 
@@ -61,35 +104,84 @@ const Onboarding = () => {
           userProfile.phone && 
           userProfile.addressInformation
 
-        // Check if step 2 is complete (has uploaded resume)
+        // Check if step 2 is complete (has uploaded resume) - reuse cached data if available
         let step2Complete = false
-        try {
-          const resumes = await api.getUserResumes()
-          step2Complete = resumes && resumes.length > 0
-          if (resumes && resumes.length > 0) {
-            setUploadedResumeId(resumes[0].id)
+        let resumes = storedResumes
+        if (!resumes) {
+          try {
+            resumes = await api.getUserResumes()
+            setStoredResumes(resumes)
+          } catch (error) {
+            console.error('Error checking resumes:', error)
           }
-        } catch (error) {
-          console.error('Error checking resumes:', error)
+        }
+        
+        if (resumes && resumes.length > 0) {
+          step2Complete = true
+          const resume = resumes[0]
+          setUploadedResumeId(resume.id)
+          // Fetch presigned URL for the resume
+          try {
+            const presignedUrlResponse = await api.getResumePresignedUrl(resume.id)
+            // Store resume info to display when user returns to step 2
+            setUploadedResumeInfo({
+              fileName: resume.fileUrl?.split('/').pop() || 'resume.pdf',
+              fileType: resume.fileType || 'PDF',
+              uploadedAt: resume.createdAt,
+              presignedUrl: presignedUrlResponse.presignedUrl
+            })
+          } catch (presignedError) {
+            console.error('Error fetching presigned URL for resume:', presignedError)
+            // Store without presigned URL if fetch fails
+            setUploadedResumeInfo({
+              fileName: resume.fileUrl?.split('/').pop() || 'resume.pdf',
+              fileType: resume.fileType || 'PDF',
+              uploadedAt: resume.createdAt
+            })
+          }
         }
 
-        // Check if step 3 is complete (has uploaded video)
+        // Check if step 3 is complete (has uploaded video) - reuse cached data if available
         let step3Complete = false
-        try {
-          const videos = await api.getUserVideos()
-          step3Complete = videos && videos.length > 0
-          if (videos && videos.length > 0) {
-            setUploadedVideoId(videos[0].id)
+        let videos = storedVideos
+        if (!videos) {
+          try {
+            videos = await api.getUserVideos()
+            setStoredVideos(videos)
+          } catch (error) {
+            console.error('Error checking videos:', error)
           }
-        } catch (error) {
-          console.error('Error checking videos:', error)
+        }
+        
+        if (videos && videos.length > 0) {
+          step3Complete = true
+          const video = videos[0]
+          setUploadedVideoId(video.id)
+          // Fetch presigned URL for the video
+          try {
+            const presignedUrlResponse = await api.getVideoPresignedUrl(video.id)
+            // Store video info to display when user returns to step 3
+            setUploadedVideoInfo({
+              fileName: video.fileUrl?.split('/').pop() || 'video.mp4',
+              fileType: video.fileType || 'MP4',
+              uploadedAt: video.createdAt,
+              presignedUrl: presignedUrlResponse.presignedUrl
+            })
+          } catch (presignedError) {
+            console.error('Error fetching presigned URL for video:', presignedError)
+            // Store without presigned URL if fetch fails
+            setUploadedVideoInfo({
+              fileName: video.fileUrl?.split('/').pop() || 'video.mp4',
+              fileType: video.fileType || 'MP4',
+              uploadedAt: video.createdAt
+            })
+          }
         }
 
         // Determine current step based on completion
         let initialStep = 1
         if (step1Complete && step2Complete && step3Complete) {
-          // All steps complete - show completion screen
-          setShowCompletion(true)
+          // All steps complete - user should see step 3
           initialStep = 3
         } else if (step1Complete && step2Complete) {
           initialStep = 3
@@ -99,8 +191,8 @@ const Onboarding = () => {
 
         // Prefill form data from user profile
         if (userProfile) {
-          setFormData(prev => ({
-            ...prev,
+      setFormData(prev => ({
+        ...prev,
             firstName: userProfile.firstName || prev.firstName,
             lastName: userProfile.lastName || prev.lastName,
             email: userProfile.email || prev.email,
@@ -110,7 +202,7 @@ const Onboarding = () => {
             state: userProfile.addressInformation?.state || prev.state,
             zipCode: userProfile.addressInformation?.zipCode || prev.zipCode,
             country: userProfile.addressInformation?.country || prev.country,
-          }))
+      }))
         }
 
         // Also check localStorage status as fallback
@@ -119,6 +211,16 @@ const Onboarding = () => {
           initialStep = 3
         } else if (savedStatus === OnboardingStatus.BASIC_INFO && step1Complete) {
           initialStep = step2Complete ? 3 : 2
+        }
+
+        // Check if step is specified in URL query params (for direct navigation from dashboard)
+        const stepParam = searchParams.get('step')
+        if (stepParam) {
+          const stepNum = parseInt(stepParam, 10)
+          if (stepNum >= 1 && stepNum <= 3) {
+            // Override initial step with URL parameter
+            initialStep = stepNum
+          }
         }
 
         setCurrentStep(initialStep)
@@ -130,7 +232,7 @@ const Onboarding = () => {
           setCurrentStep(3)
         } else if (savedStatus === OnboardingStatus.BASIC_INFO) {
           setCurrentStep(2)
-        }
+    }
       } finally {
         setIsLoadingProgress(false)
       }
@@ -138,6 +240,48 @@ const Onboarding = () => {
 
     checkOnboardingProgress()
   }, [isAuthenticated, accessToken, signupData, user])
+
+  // Check for uploaded resume when navigating to step 2 (reuse cached data if available)
+  useEffect(() => {
+    const checkUploadedResume = async () => {
+      if (currentStep === 2 && isAuthenticated && accessToken && !uploadedResumeInfo) {
+        try {
+          // Reuse cached resumes if available, otherwise fetch
+          let resumes = storedResumes
+          if (!resumes) {
+            resumes = await api.getUserResumes()
+            setStoredResumes(resumes)
+          }
+          
+          if (resumes && resumes.length > 0) {
+            const resume = resumes[0]
+            setUploadedResumeId(resume.id)
+            // Fetch presigned URL for the resume
+            try {
+              const presignedUrlResponse = await api.getResumePresignedUrl(resume.id)
+              setUploadedResumeInfo({
+                fileName: resume.fileUrl?.split('/').pop() || 'resume.pdf',
+                fileType: resume.fileType || 'PDF',
+                uploadedAt: resume.createdAt,
+                presignedUrl: presignedUrlResponse.presignedUrl
+              })
+            } catch (presignedError) {
+              console.error('Error fetching presigned URL for resume:', presignedError)
+              setUploadedResumeInfo({
+                fileName: resume.fileUrl?.split('/').pop() || 'resume.pdf',
+                fileType: resume.fileType || 'PDF',
+                uploadedAt: resume.createdAt
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Error checking resumes:', error)
+    }
+      }
+    }
+
+    checkUploadedResume()
+  }, [currentStep, isAuthenticated, accessToken, uploadedResumeInfo, storedResumes])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -255,6 +399,12 @@ const Onboarding = () => {
   }
 
   const validateStep3 = () => {
+    // Allow validation to pass if video is already uploaded (user returning to step 3)
+    if (uploadedVideoId) {
+      setVideoUploadError(null)
+      return true
+    }
+
     const videoToUpload = recordedVideo || formData.videoFile
     if (!videoToUpload) {
       setVideoUploadError('Please record or upload your video introduction')
@@ -312,6 +462,8 @@ const Onboarding = () => {
 
       const result = await api.uploadVideo(videoFile)
       setUploadedVideoId(result.id)
+      // Clear cached videos to force refresh on next check
+      setStoredVideos(null)
       return true
     } catch (error) {
       let errorMessage = error.message || 'Failed to upload video'
@@ -437,6 +589,12 @@ const Onboarding = () => {
   }
 
   const validateStep2 = () => {
+    // Allow validation to pass if resume is already uploaded (user returning to step 2)
+    if (uploadedResumeId) {
+      setResumeUploadError(null)
+      return true
+    }
+
     if (!formData.resumeFile) {
       setResumeUploadError('Please upload your resume')
       return false
@@ -473,6 +631,8 @@ const Onboarding = () => {
 
       const result = await api.uploadResume(formData.resumeFile)
       setUploadedResumeId(result.id)
+      // Clear cached resumes to force refresh on next check
+      setStoredResumes(null)
       return true
     } catch (error) {
       const errorMessage = error.message || 'Failed to upload resume'
@@ -512,10 +672,13 @@ const Onboarding = () => {
         return
       }
 
-      // Upload resume to S3
-      const uploaded = await uploadResume()
-      if (!uploaded) {
-        return
+      // Only upload if there's a new file (not already uploaded)
+      if (formData.resumeFile && !uploadedResumeId) {
+        // Upload resume to S3
+        const uploaded = await uploadResume()
+        if (!uploaded) {
+          return
+        }
       }
 
       // Save resume status
@@ -530,74 +693,112 @@ const Onboarding = () => {
     }
   }
 
-  const [showCompletion, setShowCompletion] = useState(false)
-
   const handleSubmit = async () => {
     // Validate video before attempting upload
     if (!validateStep3()) {
       return
     }
 
-    const videoFile = formData.videoFile || recordedVideo
-    
-    // Upload video
-    setIsUploadingVideo(true)
-    try {
-      const videoResult = await api.uploadVideo(videoFile)
-      setUploadedVideoId(videoResult.id)
-      
-      // Save video status
-      setOnboardingStatus(OnboardingStatus.VIDEO_UPLOADED)
+    let videoId = uploadedVideoId
 
-      // Get resume ID if not already set
-      let resumeId = uploadedResumeId
-      if (!resumeId) {
+    // Only upload if there's a new file (not already uploaded)
+    if (!videoId && (formData.videoFile || recordedVideo)) {
+      const videoFile = formData.videoFile || recordedVideo
+      
+      // Upload video
+      setIsUploadingVideo(true)
+      try {
+        const videoResult = await api.uploadVideo(videoFile)
+        videoId = videoResult.id
+        setUploadedVideoId(videoId)
+        // Clear cached videos to force refresh on next check
+        setStoredVideos(null)
+        
+        // Update video info
+        setUploadedVideoInfo({
+          fileName: videoResult.fileUrl?.split('/').pop() || 'video.mp4',
+          fileType: 'MP4',
+          uploadedAt: new Date(),
+          fileUrl: videoResult.fileUrl
+        })
+      } catch (error) {
+        const errorMessage = error.message || 'Failed to upload video'
+        setVideoUploadError(errorMessage)
+        
+        if (errorMessage.includes('Session expired') || errorMessage.includes('sign in again')) {
+          setTimeout(() => {
+            navigate('/signin')
+          }, 2000)
+        }
+        
+        setIsUploadingVideo(false)
+        return
+      } finally {
+        setIsUploadingVideo(false)
+      }
+    }
+
+    // If video already exists, reuse cached data if available
+    if (!videoId) {
+      let videos = storedVideos
+      if (!videos) {
         try {
-          const resumes = await api.getUserResumes()
-          if (resumes && resumes.length > 0) {
-            resumeId = resumes[0].id
-            setUploadedResumeId(resumeId)
-          }
+          videos = await api.getUserVideos()
+          setStoredVideos(videos)
+        } catch (error) {
+          console.error('Error fetching videos:', error)
+        }
+      }
+      
+      if (videos && videos.length > 0) {
+        videoId = videos[0].id
+        setUploadedVideoId(videoId)
+      }
+    }
+    
+    // Save video status
+    setOnboardingStatus(OnboardingStatus.VIDEO_UPLOADED)
+
+    // Get resume ID if not already set (reuse cached data if available)
+    let resumeId = uploadedResumeId
+    if (!resumeId) {
+      let resumes = storedResumes
+      if (!resumes) {
+        try {
+          resumes = await api.getUserResumes()
+          setStoredResumes(resumes)
         } catch (error) {
           console.error('Error fetching resumes:', error)
         }
       }
-
-      // Start analysis if we have both resume and video IDs
-      if (resumeId && videoResult.id) {
-        try {
-          console.log('Starting analysis with resumeId:', resumeId, 'videoId:', videoResult.id)
-          const analysisRequest = await api.startAnalysis(resumeId, videoResult.id)
-          console.log('Analysis started successfully:', analysisRequest)
-          
-          // Navigate to analysis status page immediately
-          navigate(`/analysis/${analysisRequest.id}`, { replace: true })
-          return // Exit early - navigation will happen
-        } catch (error) {
-          console.error('Failed to start analysis:', error)
-          setVideoUploadError('Video uploaded successfully, but failed to start analysis: ' + (error.message || 'Unknown error'))
-        }
-      } else {
-        console.error('Missing IDs - resumeId:', resumeId, 'videoId:', videoResult.id)
-        setVideoUploadError('Unable to start analysis. Missing resume or video. Please ensure both are uploaded.')
-      }
-    } catch (error) {
-      console.error('Error uploading video:', error)
-      let errorMessage = error.message || 'Failed to upload video'
       
-      // Handle specific error cases
-      if (errorMessage.includes('File too large') || errorMessage.includes('too large')) {
-        const fileSizeMB = (videoFile.size / 1024 / 1024).toFixed(2)
-        errorMessage = `Video file is too large (${fileSizeMB} MB). Maximum file size is 50 MB.`
+      if (resumes && resumes.length > 0) {
+        resumeId = resumes[0].id
+        setUploadedResumeId(resumeId)
       }
-      
-      setVideoUploadError(errorMessage)
-    } finally {
-      setIsUploadingVideo(false)
     }
 
-    // Only show completion if we didn't navigate to analysis page
-    setShowCompletion(true)
+    // Start analysis if we have both resume and video IDs
+    if (resumeId && videoId) {
+      try {
+        console.log('Starting analysis with resumeId:', resumeId, 'videoId:', videoId)
+        const analysisRequest = await api.startAnalysis(resumeId, videoId)
+        console.log('Analysis started successfully:', analysisRequest)
+        
+    // Complete onboarding
+    completeOnboarding()
+        
+        // Navigate to analysis status page
+        navigate(`/analysis/${analysisRequest.id}`, { replace: true })
+        return // Exit early - navigation will happen
+      } catch (error) {
+        console.error('Failed to start analysis:', error)
+        setVideoUploadError('Video uploaded successfully, but failed to start analysis: ' + (error.message || 'Unknown error'))
+      }
+    } else {
+      console.error('Missing IDs - resumeId:', resumeId, 'videoId:', videoId)
+      setVideoUploadError('Unable to start analysis. Missing resume or video. Please ensure both are uploaded.')
+    }
   }
 
   // Cleanup video stream on unmount
@@ -605,16 +806,9 @@ const Onboarding = () => {
     return () => {
       if (videoStream) {
         videoStream.getTracks().forEach(track => track.stop())
-      }
+  }
     }
   }, [videoStream])
-
-  const handleGoToDashboard = () => {
-    // Complete onboarding
-    completeOnboarding()
-    // Navigate to dashboard
-    navigate('/user-dashboard')
-  }
 
   const steps = [
     { number: 1, title: 'Basic Information', icon: 'fa-user' },
@@ -622,207 +816,84 @@ const Onboarding = () => {
     { number: 3, title: 'Video Introduction', icon: 'fa-video' }
   ]
 
+  const userName = user?.firstName && user?.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : user?.email?.split('@')[0] || 'User'
+  const userEmail = user?.email || ''
+  const userInitial = (user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()
+
+
   if (isLoadingProgress) {
     return (
-      <div className="bg-slate-50 text-neutral-900 min-h-screen flex flex-col">
-        <Header />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50/30 via-white to-indigo-50/20 flex flex-col">
+        <SocialSidebar position="right" />
+        <DashboardHeader
+          userName={userName}
+          userEmail={userEmail}
+          userInitial={userInitial}
+          onProfile={() => navigate('/user-dashboard')}
+          onLogout={handleLogout}
+          breadcrumbs={[
+            { label: 'Home', href: '/' },
+            { label: 'Onboarding' }
+          ]}
+          title=""
+          subtitle=""
+        />
         <main className="flex-1 flex items-center justify-center">
           <LoadingSpinner />
         </main>
+        <Footer />
       </div>
     )
   }
 
   return (
-    <div className="bg-slate-50 text-neutral-900 min-h-screen flex flex-col">
-      <Header />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50/30 via-white to-indigo-50/20 flex flex-col">
+      <SocialSidebar position="right" />
+      
+      <DashboardHeader
+        userName={userName}
+        userEmail={userEmail}
+        userInitial={userInitial}
+        onProfile={() => navigate('/user-dashboard')}
+        onLogout={handleLogout}
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Onboarding' }
+        ]}
+        title=""
+        subtitle=""
+      />
 
       <main className="flex-1">
-        {showCompletion ? (
-          <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 py-6 lg:py-9">
-            {/* Animated Background */}
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
-              <div className="absolute top-1/2 -left-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl" />
-            </div>
-
-            <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-              {/* Profile Complete Section */}
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500 mb-3">
-                  <i className="fa-solid fa-check text-white text-lg"></i>
-                </div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white mb-1.5 flex items-center justify-center gap-2">
-                  <i className="fa-solid fa-party-horn text-yellow-400 text-sm"></i>
-                  Profile Complete!
-                </h1>
-                <p className="text-xs text-slate-300 mb-4">Your onboarding is complete and AI feedback is on the way</p>
-
-                {/* Metrics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-xl mx-auto mb-4">
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 shadow-sm p-3">
-                    <div className="text-xl font-bold text-indigo-300 mb-0.5">5.42</div>
-                    <div className="text-[10px] text-slate-400">Time to Complete</div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 shadow-sm p-3">
-                    <div className="text-xl font-bold text-indigo-300 mb-0.5">100%</div>
-                    <div className="text-[10px] text-slate-400">Profile Completeness</div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 shadow-sm p-3">
-                    <div className="text-xl font-bold text-indigo-300 mb-0.5">Top 15%</div>
-                    <div className="text-[10px] text-slate-400">Candidate Quality</div>
-                  </div>
-                </div>
-
-                {/* Go to Dashboard Button */}
-                <button
-                  onClick={handleGoToDashboard}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg"
-                >
-                  View Your Dashboard <i className="fa-solid fa-arrow-right ml-2 text-xs"></i>
-                </button>
-              </div>
-
-              {/* AI Analysis Section */}
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-2">
-                  <div className="flex items-center gap-2 text-white">
-                    <i className="fa-solid fa-robot text-base"></i>
-                    <div>
-                      <h2 className="text-base font-bold">AI Analysis in Progress</h2>
-                      <p className="text-[10px] text-indigo-100">Our AI is analyzing your profile and preparing personalized feedback</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-3">
-                  <div className="grid md:grid-cols-2 gap-4 mb-3">
-                    {/* Resume Analysis */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5">
-                          <i className="fa-solid fa-file-lines text-indigo-300 text-xs"></i>
-                          <h3 className="font-semibold text-white text-xs">Resume Analysis</h3>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400 text-[10px]">
-                          <span>Processing...</span>
-                          <i className="fa-solid fa-spinner fa-spin text-xs"></i>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5 text-[10px]">
-                        <div className="flex items-center gap-1.5 text-emerald-400">
-                          <i className="fa-solid fa-check text-xs"></i>
-                          <span>Document parsed successfully</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-emerald-400">
-                          <i className="fa-solid fa-check text-xs"></i>
-                          <span>Skills extracted and categorized</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400">
-                          <i className="fa-solid fa-circle text-[8px]"></i>
-                          <span>Analyzing content quality and impact</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400">
-                          <i className="fa-solid fa-circle text-[8px]"></i>
-                          <span>Generating improvement suggestions</span>
-                        </div>
-                      </div>
-                      <div className="mt-3">
-                        <div className="text-lg font-bold text-indigo-300">~3 mins</div>
-                        <div className="text-[10px] text-slate-400">Estimated completion</div>
-                      </div>
-                    </div>
-
-                    {/* Video Analysis */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5">
-                          <i className="fa-solid fa-video text-indigo-300 text-xs"></i>
-                          <h3 className="font-semibold text-white text-xs">Video Analysis</h3>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400 text-[10px]">
-                          <span>Processing...</span>
-                          <i className="fa-solid fa-spinner fa-spin text-xs"></i>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5 text-[10px]">
-                        <div className="flex items-center gap-1.5 text-emerald-400">
-                          <i className="fa-solid fa-check text-xs"></i>
-                          <span>Video uploaded and transcribed</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400">
-                          <i className="fa-solid fa-circle text-[8px]"></i>
-                          <span>Analyzing communication clarity</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400">
-                          <i className="fa-solid fa-circle text-[8px]"></i>
-                          <span>Evaluating presentation quality</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400">
-                          <i className="fa-solid fa-circle text-[8px]"></i>
-                          <span>Generating personalized tips</span>
-                        </div>
-                      </div>
-                      <div className="mt-3">
-                        <div className="text-lg font-bold text-indigo-300">~5 mins</div>
-                        <div className="text-[10px] text-slate-400">Estimated completion</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Overall Progress */}
-                  <div className="pt-3 border-t border-white/20">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-semibold text-white">Overall Progress</span>
-                      <span className="text-[10px] font-semibold text-indigo-300">78%</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden mb-1.5">
-                      <div className="h-full bg-gradient-to-r from-emerald-500 to-indigo-600 rounded-full" style={{ width: '78%' }}></div>
-                    </div>
-                    <p className="text-[10px] text-slate-400">Your AI feedback will be ready in approximately 3-5 minutes</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        ) : (
-          <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 py-8 lg:py-12">
-            {/* Animated Background */}
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
-              <div className="absolute top-1/2 -left-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl" />
-            </div>
-
-            <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className="py-5 lg:py-6">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Progress Steps */}
-            <div className="mb-8">
+            <div className="mb-6">
               <div className="flex items-center justify-between mb-4">
                 {steps.map((step, index) => (
                   <React.Fragment key={step.number}>
                     <div className="flex flex-col items-center flex-1">
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
                           currentStep >= step.number
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-white/20 text-slate-300'
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                            : 'bg-neutral-100 text-neutral-400'
                         }`}
                       >
                         {currentStep > step.number ? (
-                          <i className="fa-solid fa-check text-white"></i>
+                          <i className="fa-solid fa-check text-white text-xs"></i>
                         ) : (
-                          <i className={`fa-solid ${step.icon}`}></i>
+                          <i className={`fa-solid ${step.icon} text-xs`}></i>
                         )}
                       </div>
-                      <span className="mt-2 text-xs font-medium text-slate-300 text-center">{step.title}</span>
+                      <span className="mt-1.5 text-xs font-medium text-neutral-600 text-center">{step.title}</span>
                     </div>
                     {index < steps.length - 1 && (
                       <div
-                        className={`flex-1 h-1 mx-2 transition-all ${
-                          currentStep > step.number ? 'bg-indigo-600' : 'bg-white/20'
+                        className={`flex-1 h-1 mx-2 transition-all rounded ${
+                          currentStep > step.number ? 'bg-gradient-to-r from-indigo-600 to-purple-600' : 'bg-neutral-200'
                         }`}
                       />
                     )}
@@ -832,175 +903,175 @@ const Onboarding = () => {
             </div>
 
             {/* Step Content */}
-            <div className="rounded-2xl border border-white/20 shadow-xl p-6 sm:p-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-6">
               {currentStep === 1 && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                    <h2 className="text-xl sm:text-2xl font-bold text-neutral-900 mb-1">
                       Tell us about yourself so we can match you with the{' '}
-                      <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                      <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                         right opportunities.
                       </span>
                     </h2>
-                    <p className="text-sm text-slate-300">Basic Information</p>
+                    <p className="text-xs text-neutral-600">Basic Information</p>
                   </div>
 
                   <ErrorMessage error={saveError} onDismiss={() => setSaveError(null)} />
 
-                <div className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-slate-300">Legal First Name *</label>
+                <div className="space-y-3">
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-neutral-700">Legal First Name *</label>
                       <input
                         name="firstName"
                         value={formData.firstName}
                         onChange={handleInputChange}
-                        className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                          errors.firstName ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                        className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                          errors.firstName ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                         }`}
                         placeholder="John"
                         required
                       />
                       {errors.firstName && (
-                        <p className="text-xs text-red-400">{errors.firstName}</p>
+                        <p className="text-xs text-red-500">{errors.firstName}</p>
                       )}
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-slate-300">Legal Last Name *</label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-neutral-700">Legal Last Name *</label>
                       <input
                         name="lastName"
                         value={formData.lastName}
                         onChange={handleInputChange}
-                        className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                          errors.lastName ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                        className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                          errors.lastName ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                         }`}
                         placeholder="Doe"
                         required
                       />
                       {errors.lastName && (
-                        <p className="text-xs text-red-400">{errors.lastName}</p>
+                        <p className="text-xs text-red-500">{errors.lastName}</p>
                       )}
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-slate-300">Email *</label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-neutral-700">Email *</label>
                       <input
                         type="email"
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
-                        className="w-full rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         placeholder="john.doe@example.com"
                         required
                       />
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-slate-300">Phone Number *</label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-neutral-700">Phone Number *</label>
                       <input
                         type="tel"
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                          errors.phone ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                        className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                          errors.phone ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                         }`}
                         placeholder="+1 (555) 123-4567"
                         required
                       />
                       {errors.phone && (
-                        <p className="text-xs text-red-400">{errors.phone}</p>
+                        <p className="text-xs text-red-500">{errors.phone}</p>
                       )}
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-white/20">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-white mb-3">
-                      <i className="fa-solid fa-location-dot text-indigo-300"></i>
+                  <div className="pt-3 border-t border-neutral-200">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 mb-2">
+                      <i className="fa-solid fa-location-dot text-indigo-600"></i>
                       <span>Address Information</span>
                     </div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="md:col-span-2 flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-slate-300">Street Address *</label>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div className="md:col-span-2 flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-neutral-700">Street Address *</label>
                         <input
                           name="streetAddress"
                           value={formData.streetAddress}
                           onChange={handleInputChange}
-                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                            errors.streetAddress ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            errors.streetAddress ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                           }`}
                           placeholder="123 Main Street"
                           required
                         />
                         {errors.streetAddress && (
-                          <p className="text-xs text-red-400">{errors.streetAddress}</p>
+                          <p className="text-xs text-red-500">{errors.streetAddress}</p>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-slate-300">City *</label>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-neutral-700">City *</label>
                         <input
                           name="city"
                           value={formData.city}
                           onChange={handleInputChange}
-                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                            errors.city ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            errors.city ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                           }`}
                           placeholder="San Francisco"
                           required
                         />
                         {errors.city && (
-                          <p className="text-xs text-red-400">{errors.city}</p>
+                          <p className="text-xs text-red-500">{errors.city}</p>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-slate-300">State/Province *</label>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-neutral-700">State/Province *</label>
                         <input
                           name="state"
                           value={formData.state}
                           onChange={handleInputChange}
-                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                            errors.state ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            errors.state ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                           }`}
                           placeholder="California"
                           required
                         />
                         {errors.state && (
-                          <p className="text-xs text-red-400">{errors.state}</p>
+                          <p className="text-xs text-red-500">{errors.state}</p>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-slate-300">ZIP/Postal Code *</label>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-neutral-700">ZIP/Postal Code *</label>
                         <input
                           name="zipCode"
                           value={formData.zipCode}
                           onChange={handleInputChange}
-                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                            errors.zipCode ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            errors.zipCode ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                           }`}
                           placeholder="94102"
                           required
                         />
                         {errors.zipCode && (
-                          <p className="text-xs text-red-400">{errors.zipCode}</p>
+                          <p className="text-xs text-red-500">{errors.zipCode}</p>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-slate-300">Country *</label>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-neutral-700">Country *</label>
                         <select
                           name="country"
                           value={formData.country}
                           onChange={handleInputChange}
-                          className={`w-full rounded-lg border bg-white/10 backdrop-blur-sm px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                            errors.country ? 'border-red-400' : 'border-white/20 focus:border-indigo-400'
+                          className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            errors.country ? 'border-red-400' : 'border-neutral-200 focus:border-indigo-500'
                           }`}
                           required
                         >
-                          <option value="" className="bg-slate-900 text-white">Select country</option>
-                          <option value="US" className="bg-slate-900 text-white">United States</option>
-                          <option value="CA" className="bg-slate-900 text-white">Canada</option>
-                          <option value="UK" className="bg-slate-900 text-white">United Kingdom</option>
-                          <option value="AU" className="bg-slate-900 text-white">Australia</option>
+                          <option value="">Select country</option>
+                          <option value="US">United States</option>
+                          <option value="CA">Canada</option>
+                          <option value="UK">United Kingdom</option>
+                          <option value="AU">Australia</option>
                         </select>
                         {errors.country && (
-                          <p className="text-xs text-red-400">{errors.country}</p>
+                          <p className="text-xs text-red-500">{errors.country}</p>
                         )}
                       </div>
                     </div>
@@ -1010,16 +1081,16 @@ const Onboarding = () => {
             )}
 
             {currentStep === 2 && (
-              <div className="space-y-6">
+              <div className="space-y-3">
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Upload Your Resume</h2>
-                  <p className="text-sm text-slate-300">Upload your resume in PDF or DOCX format</p>
+                  <h2 className="text-lg sm:text-xl font-bold text-neutral-900 mb-0.5">Upload Your Resume</h2>
+                  <p className="text-xs text-neutral-600">Upload your resume in PDF or DOCX format</p>
                 </div>
 
-                <div className="border-2 border-dashed border-white/30 rounded-xl p-8 text-center hover:border-indigo-400 transition bg-white/5">
-                  <i className="fa-solid fa-file-arrow-up text-4xl text-slate-300 mb-4"></i>
-                  <p className="text-sm font-semibold text-white mb-2">Drop your resume here or click to browse</p>
-                  <p className="text-xs text-slate-400 mb-4">PDF, DOCX up to 5MB</p>
+                <div className="border-2 border-dashed border-neutral-300 rounded-lg p-4 text-center hover:border-indigo-400 transition bg-neutral-50">
+                  <i className="fa-solid fa-file-arrow-up text-lg text-neutral-400 mb-2"></i>
+                  <p className="text-xs font-semibold text-neutral-900 mb-0.5">Drop your resume here or click to browse</p>
+                  <p className="text-[10px] text-neutral-500 mb-2">PDF, DOCX up to 5MB</p>
                   <input
                     type="file"
                     accept=".pdf,.doc,.docx"
@@ -1029,15 +1100,40 @@ const Onboarding = () => {
                   />
                   <label
                     htmlFor="resume-upload"
-                    className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 cursor-pointer transition"
+                    className="inline-block px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-xs font-semibold hover:from-indigo-700 hover:to-purple-700 cursor-pointer transition shadow-md"
                   >
-                    Choose File
+                    {uploadedResumeId ? 'Change File' : 'Choose File'}
                   </label>
-                  {formData.resumeFile && (
-                    <p className="mt-4 text-sm text-indigo-300">
-                      <i className="fa-solid fa-check-circle mr-2"></i>
-                      {formData.resumeFile.name}
-                    </p>
+                  {(formData.resumeFile || uploadedResumeInfo) && (
+                    <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                      <p className="text-xs text-emerald-700 flex items-center justify-center mb-1.5">
+                        <i className="fa-solid fa-check-circle mr-1.5 text-[10px]"></i>
+                        {formData.resumeFile ? formData.resumeFile.name : uploadedResumeInfo?.fileName || 'Resume uploaded'}
+                      </p>
+                      {uploadedResumeInfo && !formData.resumeFile && uploadedResumeInfo.presignedUrl && (
+                        <div className="mt-1.5">
+                          <iframe
+                            src={uploadedResumeInfo.presignedUrl}
+                            className="w-full h-48 rounded-lg border border-emerald-200"
+                            title="Resume Preview"
+                          />
+                          <a
+                            href={uploadedResumeInfo.presignedUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-emerald-600 hover:text-emerald-700 mt-1.5 inline-block"
+                          >
+                            <i className="fa-solid fa-download mr-1 text-[10px]"></i>
+                            Download Resume
+                          </a>
+                        </div>
+                      )}
+                      {uploadedResumeInfo && !formData.resumeFile && (
+                        <p className="text-[10px] text-emerald-600 mt-1.5 text-center">
+                          Resume already uploaded. You can upload a new one to replace it.
+                        </p>
+                      )}
+                    </div>
                   )}
                   {resumeUploadError && (
                     <ErrorMessage message={resumeUploadError} />
@@ -1047,66 +1143,66 @@ const Onboarding = () => {
             )}
 
             {currentStep === 3 && (
-              <div className="space-y-6">
+              <div className="space-y-3">
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Video Introduction</h2>
-                  <p className="text-sm text-slate-300">Record or upload a short video introducing yourself</p>
+                  <h2 className="text-lg sm:text-xl font-bold text-neutral-900 mb-0.5">Video Introduction</h2>
+                  <p className="text-xs text-neutral-600">Record or upload a short video introducing yourself</p>
                 </div>
 
                 {videoUploadError && (
                   <ErrorMessage message={videoUploadError} />
                 )}
 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid md:grid-cols-2 gap-3">
                   {/* Record Video Section */}
-                  <div className="border-2 border-dashed border-white/30 rounded-xl p-6 text-center hover:border-indigo-400 transition bg-white/5">
-                    <i className="fa-solid fa-video text-3xl text-slate-300 mb-3"></i>
-                    <h3 className="text-sm font-semibold text-white mb-2">Record Video</h3>
-                    <p className="text-xs text-slate-400 mb-4">Record directly from your camera</p>
+                  <div className="border-2 border-dashed border-neutral-300 rounded-lg p-3 text-center hover:border-indigo-400 transition bg-neutral-50">
+                    <i className="fa-solid fa-video text-lg text-neutral-400 mb-1.5"></i>
+                    <h3 className="text-xs font-semibold text-neutral-900 mb-0.5">Record Video</h3>
+                    <p className="text-[10px] text-neutral-500 mb-2">Record directly from your camera</p>
                     
                     {!isRecording && !recordedVideo && (
                       <button
                         onClick={startRecording}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 cursor-pointer transition"
+                        className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-xs font-semibold hover:from-indigo-700 hover:to-purple-700 cursor-pointer transition shadow-md"
                       >
-                        <i className="fa-solid fa-circle mr-2"></i>
+                        <i className="fa-solid fa-circle mr-1.5 text-[10px]"></i>
                         Start Recording
                       </button>
                     )}
 
                     {isRecording && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-center gap-2 text-red-400">
-                          <i className="fa-solid fa-circle animate-pulse"></i>
-                          <span className="text-sm font-semibold">Recording...</span>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-center gap-1.5 text-red-600">
+                          <i className="fa-solid fa-circle animate-pulse text-[10px]"></i>
+                          <span className="text-xs font-semibold">Recording...</span>
                         </div>
                         <button
                           onClick={stopRecording}
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 cursor-pointer transition"
+                          className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 cursor-pointer transition shadow-md"
                         >
-                          <i className="fa-solid fa-stop mr-2"></i>
+                          <i className="fa-solid fa-stop mr-1.5 text-[10px]"></i>
                           Stop Recording
                         </button>
                       </div>
                     )}
 
                     {recordedVideo && !isRecording && (
-                      <div className="space-y-3">
-                        <p className="text-sm text-indigo-300">
-                          <i className="fa-solid fa-check-circle mr-2"></i>
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-indigo-600">
+                          <i className="fa-solid fa-check-circle mr-1.5 text-[10px]"></i>
                           Video recorded ({Math.round(recordedVideo.size / 1024 / 1024 * 100) / 100} MB)
                         </p>
                         <video
                           src={URL.createObjectURL(recordedVideo)}
                           controls
-                          className="w-full max-h-48 rounded-lg"
+                          className="w-full max-h-40 rounded-lg"
                         />
                         <button
                           onClick={() => {
                             setRecordedVideo(null)
                             setFormData(prev => ({ ...prev, videoFile: null }))
                           }}
-                          className="px-3 py-1 bg-slate-600 text-white rounded text-xs hover:bg-slate-700"
+                          className="px-2 py-1 bg-neutral-600 text-white rounded text-[10px] hover:bg-neutral-700"
                         >
                           Record Again
                         </button>
@@ -1115,39 +1211,71 @@ const Onboarding = () => {
                   </div>
 
                   {/* Upload Video Section */}
-                  <div className="border-2 border-dashed border-white/30 rounded-xl p-6 text-center hover:border-indigo-400 transition bg-white/5">
-                    <i className="fa-solid fa-file-arrow-up text-3xl text-slate-300 mb-3"></i>
-                    <h3 className="text-sm font-semibold text-white mb-2">Upload Video</h3>
-                    <p className="text-xs text-slate-400 mb-4">MP4, MOV, WebM up to 50MB</p>
-                    <input
-                      type="file"
+                  <div className="border-2 border-dashed border-neutral-300 rounded-lg p-3 text-center hover:border-indigo-400 transition bg-neutral-50">
+                    <i className="fa-solid fa-file-arrow-up text-lg text-neutral-400 mb-1.5"></i>
+                    <h3 className="text-xs font-semibold text-neutral-900 mb-0.5">Upload Video</h3>
+                    <p className="text-[10px] text-neutral-500 mb-2">MP4, MOV, WebM up to 50MB</p>
+                  <input
+                    type="file"
                       accept="video/mp4,video/mov,video/webm"
-                      onChange={(e) => handleFileChange(e, 'videoFile')}
-                      className="hidden"
-                      id="video-upload"
-                    />
-                    <label
-                      htmlFor="video-upload"
-                      className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 cursor-pointer transition"
-                    >
-                      Choose Video File
-                    </label>
-                    {formData.videoFile && !recordedVideo && (
-                      <div className="mt-4 space-y-2">
-                        <p className="text-sm text-indigo-300">
-                          <i className="fa-solid fa-check-circle mr-2"></i>
-                          {formData.videoFile.name}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {(formData.videoFile.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                        {formData.videoFile.type.startsWith('video/') && (
-                          <video
-                            src={URL.createObjectURL(formData.videoFile)}
-                            controls
-                            className="w-full max-h-48 rounded-lg mt-2"
-                          />
-                        )}
+                    onChange={(e) => handleFileChange(e, 'videoFile')}
+                    className="hidden"
+                    id="video-upload"
+                  />
+                  <label
+                    htmlFor="video-upload"
+                    className="inline-block px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-xs font-semibold hover:from-indigo-700 hover:to-purple-700 cursor-pointer transition shadow-md"
+                  >
+                    {uploadedVideoInfo ? 'Change Video File' : 'Choose Video File'}
+                  </label>
+                    {(formData.videoFile || uploadedVideoInfo) && !recordedVideo && (
+                      <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        {formData.videoFile ? (
+                          <div className="space-y-1.5">
+                            <p className="text-xs text-emerald-700 flex items-center justify-center">
+                              <i className="fa-solid fa-check-circle mr-1.5 text-[10px]"></i>
+                              {formData.videoFile.name}
+                            </p>
+                            <p className="text-[10px] text-neutral-500 text-center">
+                              {(formData.videoFile.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                            {formData.videoFile.type.startsWith('video/') && (
+                              <video
+                                src={URL.createObjectURL(formData.videoFile)}
+                                controls
+                                className="w-full max-h-40 rounded-lg mt-1.5"
+                              />
+                            )}
+                          </div>
+                        ) : uploadedVideoInfo ? (
+                          <div>
+                            <p className="text-xs text-emerald-700 flex items-center justify-center mb-1.5">
+                              <i className="fa-solid fa-check-circle mr-1.5 text-[10px]"></i>
+                              {uploadedVideoInfo.fileName || 'Video uploaded'}
+                            </p>
+                            {uploadedVideoInfo.presignedUrl && (
+                              <div className="mt-1.5">
+                                <video
+                                  src={uploadedVideoInfo.presignedUrl}
+                                  controls
+                                  className="w-full max-h-40 rounded-lg"
+                                />
+                                <a
+                                  href={uploadedVideoInfo.presignedUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-emerald-600 hover:text-emerald-700 mt-1.5 inline-block"
+                                >
+                                  <i className="fa-solid fa-download mr-1 text-[10px]"></i>
+                                  Download Video
+                                </a>
+                              </div>
+                            )}
+                            <p className="text-[10px] text-emerald-600 mt-1.5 text-center">
+                              Video already uploaded. You can upload a new one to replace it.
+                            </p>
+                          </div>
+                        ) : null}
                       </div>
                     )}
                   </div>
@@ -1155,42 +1283,42 @@ const Onboarding = () => {
               </div>
             )}
 
-            {/* Navigation Buttons */}
-            <div className="flex items-center justify-between mt-8 pt-6 border-t border-white/20">
+            {/* Navigation Buttons - Sticky */}
+            <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-neutral-200 -mx-6 px-6 py-3 mt-6 flex items-center justify-between z-10 shadow-lg">
               <button
                 onClick={handleBack}
                 disabled={currentStep === 1}
-                className={`px-4 py-2 rounded-lg border border-white/30 text-white text-sm font-semibold transition ${
+                className={`px-4 py-2 rounded-lg border border-neutral-300 text-neutral-700 text-sm font-semibold transition ${
                   currentStep === 1
                     ? 'opacity-50 cursor-not-allowed'
-                    : 'hover:bg-white/10'
+                    : 'hover:bg-neutral-50'
                 }`}
               >
-                <i className="fa-solid fa-arrow-left mr-2"></i>
+                <i className="fa-solid fa-arrow-left mr-2 text-xs"></i>
                 Back
               </button>
               {currentStep < 3 ? (
                 <button
                   onClick={handleNext}
                   disabled={isSaving || isUploadingResume}
-                  className={`px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition ${
+                  className={`px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition shadow-md ${
                     isSaving || isUploadingResume ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
                   {isSaving ? (
                     <>
-                      <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                      <i className="fa-solid fa-spinner fa-spin mr-2 text-xs"></i>
                       Saving...
                     </>
                   ) : isUploadingResume ? (
                     <>
-                      <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                      <i className="fa-solid fa-spinner fa-spin mr-2 text-xs"></i>
                       Uploading...
                     </>
                   ) : (
                     <>
-                      Next
-                      <i className="fa-solid fa-arrow-right ml-2"></i>
+                  Next
+                  <i className="fa-solid fa-arrow-right ml-2 text-xs"></i>
                     </>
                   )}
                 </button>
@@ -1198,19 +1326,19 @@ const Onboarding = () => {
                 <button
                   onClick={handleSubmit}
                   disabled={isUploadingVideo}
-                  className={`px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition ${
+                  className={`px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition shadow-md ${
                     isUploadingVideo ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
                   {isUploadingVideo ? (
                     <>
-                      <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                      <i className="fa-solid fa-spinner fa-spin mr-2 text-xs"></i>
                       Uploading Video...
                     </>
                   ) : (
                     <>
-                      Complete Setup
-                      <i className="fa-solid fa-check ml-2"></i>
+                  Complete Setup
+                  <i className="fa-solid fa-check ml-2 text-xs"></i>
                     </>
                   )}
                 </button>
@@ -1219,8 +1347,9 @@ const Onboarding = () => {
           </div>
           </div>
         </section>
-        )}
       </main>
+
+      <Footer />
     </div>
   )
 }

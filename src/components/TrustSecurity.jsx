@@ -2,15 +2,15 @@ import React from 'react'
 
 const TrustSecurity = () => {
   return (
-    <section id="trust-security" className="py-20 bg-white">
+    <section id="trust-security" className="py-12 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-neutral-900 mb-6">Trusted by Leading Canadian Employers</h2>
-          <p className="text-xl text-neutral-900/70 max-w-3xl mx-auto">Join thousands of professionals and companies who trust Nexus for their career and hiring needs.</p>
+        <div className="text-center mb-10">
+          <h2 className="text-2xl lg:text-3xl font-bold text-neutral-900 mb-4">Trusted by Leading Canadian Employers</h2>
+          <p className="text-base text-neutral-900/70 max-w-3xl mx-auto">Join thousands of professionals and companies who trust Nexus for their career and hiring needs.</p>
         </div>
 
         {/* Company Logos */}
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-8 items-center mb-16 opacity-30 hover:opacity-60 transition-opacity">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-5 items-center mb-10 opacity-30 hover:opacity-60 transition-opacity">
           <div className="flex items-center justify-center h-16">
             <img className="h-12 w-auto object-contain grayscale" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/2f6c33be22-ebd70fb258b29f854f9f.png" alt="tech company logo Google style" />
           </div>
@@ -32,27 +32,27 @@ const TrustSecurity = () => {
         </div>
 
         {/* Security Features */}
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid lg:grid-cols-3 gap-5">
           <div className="text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <i className="fa-solid fa-shield-check text-success text-2xl"></i>
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <i className="fa-solid fa-shield-check text-success text-lg"></i>
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-3">Data Protection & Compliance</h3>
-            <p className="text-neutral-900/70">Your data is encrypted and stored in Canada. Our processes meet GDPR and PIPEDA standards and undergo independent audits.</p>
+            <h3 className="text-base font-bold text-neutral-900 mb-2">Data Protection & Compliance</h3>
+            <p className="text-sm text-neutral-900/70">Your data is encrypted and stored in Canada. Our processes meet GDPR and PIPEDA standards and undergo independent audits.</p>
           </div>
           <div className="text-center">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <i className="fa-solid fa-user-shield text-primary text-2xl"></i>
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <i className="fa-solid fa-user-shield text-primary text-lg"></i>
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-3">Privacy First</h3>
-            <p className="text-neutral-900/70">You choose who can view your video resume and skills profiles, and can control your profile access at any time.</p>
+            <h3 className="text-base font-bold text-neutral-900 mb-2">Privacy First</h3>
+            <p className="text-sm text-neutral-900/70">You choose who can view your video resume and skills profiles, and can control your profile access at any time.</p>
           </div>
           <div className="text-center">
-            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <i className="fa-solid fa-certificate text-purple-600 text-2xl"></i>
+            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <i className="fa-solid fa-certificate text-purple-600 text-lg"></i>
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-3">Licensed & Verified Employers</h3>
-            <p className="text-neutral-900/70">All employers hold the necessary provincial recruiter licences and have been vetted for fair hiring practices.</p>
+            <h3 className="text-base font-bold text-neutral-900 mb-2">Licensed & Verified Employers</h3>
+            <p className="text-sm text-neutral-900/70">All employers hold the necessary provincial recruiter licences and have been vetted for fair hiring practices.</p>
           </div>
         </div>
       </div>

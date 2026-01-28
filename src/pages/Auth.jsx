@@ -12,11 +12,27 @@ const Signin = () => {
   const navigate = useNavigate()
   const { login, setLoading, isLoading, error, setError, clearError, isAuthenticated, accessToken } = useAuth()
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated - check onboarding status
   useEffect(() => {
-    if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
-      navigate('/user-dashboard', { replace: true })
+    const checkAndRedirect = async () => {
+      if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
+        try {
+          const { checkOnboardingComplete } = await import('../utils/onboarding')
+          const onboardingComplete = await checkOnboardingComplete(api)
+
+          if (onboardingComplete) {
+            navigate('/user-dashboard', { replace: true })
+          } else {
+            navigate('/onboarding', { replace: true })
+          }
+        } catch (error) {
+          console.error('Error checking onboarding:', error)
+          navigate('/onboarding', { replace: true })
+        }
+      }
     }
+
+    checkAndRedirect()
   }, [isAuthenticated, accessToken, navigate])
   const [formData, setFormData] = useState({
     email: '',
@@ -44,8 +60,23 @@ const Signin = () => {
       // Login using Redux
       login(response.user, response.tokens)
       
-      // Always redirect to dashboard after login
-      navigate('/user-dashboard')
+      // Check onboarding status before redirecting using centralized function
+      try {
+        const { checkOnboardingComplete } = await import('../utils/onboarding')
+        const onboardingComplete = await checkOnboardingComplete(api)
+
+        // Redirect based on onboarding status
+        if (onboardingComplete) {
+          navigate('/user-dashboard', { replace: true })
+        } else {
+          // Incomplete onboarding - redirect to onboarding
+          navigate('/onboarding', { replace: true })
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error)
+        // If we can't check onboarding, assume incomplete and send to onboarding
+        navigate('/onboarding', { replace: true })
+      }
     } catch (error) {
       const errorMessage = error.message || 'Invalid email or password'
       setError(errorMessage)

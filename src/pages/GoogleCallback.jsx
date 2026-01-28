@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { api } from '../utils/api'
+import { unauthenticatedFetch, handleApiError } from '../utils/apiClient'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 
 const GoogleCallback = () => {
@@ -10,85 +11,115 @@ const GoogleCallback = () => {
   const { login } = useAuth()
   const processedRef = useRef(false)
 
+  const checkOnboardingAndRedirect = async (isEmployer = false) => {
+    try {
+      if (isEmployer) {
+        try {
+          const profile = await api.getEmployerProfile()
+          if (profile) {
+            navigate('/employer-dashboard', { replace: true })
+            return
+          }
+        } catch (error) {
+          // Fall through to onboarding redirect
+        }
+        navigate('/employer-onboarding', { replace: true })
+        return
+      }
+
+      const userProfile = await api.getCurrentUser()
+      
+      // Check if onboarding is complete
+      const hasBasicInfo = 
+        userProfile.firstName && 
+        userProfile.lastName && 
+        userProfile.phone && 
+        userProfile.addressInformation &&
+        userProfile.addressInformation.streetAddress &&
+        userProfile.addressInformation.city &&
+        userProfile.addressInformation.state &&
+        userProfile.addressInformation.zipCode &&
+        userProfile.addressInformation.country
+
+      let hasResume = false
+      let hasVideo = false
+      
+      try {
+        const resumes = await api.getUserResumes()
+        hasResume = resumes && resumes.length > 0
+      } catch (error) {
+        console.error('Error checking resumes:', error)
+      }
+
+      try {
+        const videos = await api.getUserVideos()
+        hasVideo = videos && videos.length > 0
+      } catch (error) {
+        console.error('Error checking videos:', error)
+      }
+
+      const onboardingComplete = hasBasicInfo && hasResume && hasVideo
+
+      // Redirect based on onboarding status
+      if (onboardingComplete) {
+        navigate('/user-dashboard', { replace: true })
+      } else {
+        navigate('/onboarding', { replace: true })
+      }
+    } catch (error) {
+      console.error('Error checking onboarding status:', error)
+      navigate('/onboarding', { replace: true })
+    }
+  }
+
   useEffect(() => {
     // Prevent multiple executions
     if (processedRef.current) return
     
-    // Extract tokens and user data from URL query params
-    const accessToken = searchParams.get('accessToken')
-    const refreshToken = searchParams.get('refreshToken')
-    const userDataStr = searchParams.get('user')
+    // Extract code from URL query params
+    const code = searchParams.get('code')
+    const state = searchParams.get('state')
 
-    if (accessToken && refreshToken && userDataStr) {
+    if (!code) {
       processedRef.current = true
-      
-      const processCallback = async () => {
-        try {
-          // Parse user data and login using Redux
-          const userData = JSON.parse(decodeURIComponent(userDataStr))
-          login(userData, { accessToken, refreshToken })
-
-          // Check if user has completed onboarding (new user check)
-          try {
-            const userProfile = await api.getCurrentUser()
-            
-            // Check if onboarding is complete
-            // Onboarding is complete if user has: firstName, lastName, phone, addressInformation, resume, and video
-            const hasBasicInfo = 
-              userProfile.firstName && 
-              userProfile.lastName && 
-              userProfile.phone && 
-              userProfile.addressInformation &&
-              userProfile.addressInformation.streetAddress &&
-              userProfile.addressInformation.city &&
-              userProfile.addressInformation.state &&
-              userProfile.addressInformation.zipCode &&
-              userProfile.addressInformation.country
-
-            let hasResume = false
-            let hasVideo = false
-            
-            try {
-              const resumes = await api.getUserResumes()
-              hasResume = resumes && resumes.length > 0
-            } catch (error) {
-              console.error('Error checking resumes:', error)
-            }
-
-            try {
-              const videos = await api.getUserVideos()
-              hasVideo = videos && videos.length > 0
-            } catch (error) {
-              console.error('Error checking videos:', error)
-            }
-
-            const onboardingComplete = hasBasicInfo && hasResume && hasVideo
-
-            // Redirect based on onboarding status
-            if (onboardingComplete) {
-              // Existing user with completed onboarding - go to dashboard
-              navigate('/user-dashboard', { replace: true })
-            } else {
-              // New user or incomplete onboarding - go to onboarding
-              navigate('/onboarding', { replace: true })
-            }
-          } catch (error) {
-            console.error('Error checking onboarding status:', error)
-            // If we can't check onboarding, assume new user and send to onboarding
-            navigate('/onboarding', { replace: true })
-          }
-        } catch (error) {
-          console.error('Error processing Google callback:', error)
-          navigate('/signin', { replace: true })
-        }
-      }
-
-      processCallback()
-    } else {
-      processedRef.current = true
-      // Missing required params, redirect to signin
+      console.error('Missing authorization code from Google')
       navigate('/signin', { replace: true })
+      return
     }
+
+    processedRef.current = true
+    
+    const processCallback = async () => {
+      try {
+        // Exchange code for tokens and user data
+        const isEmployerState = state === 'employer'
+        const callbackPath = isEmployerState
+          ? '/auth/employer/google/callback'
+          : '/auth/google/callback'
+
+        const response = await unauthenticatedFetch(callbackPath, {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        })
+        
+        const result = await handleApiError(response)
+        
+        // Login using Redux with tokens and user data
+        login(result.user, {
+          accessToken: result.tokens.accessToken,
+          refreshToken: result.tokens.refreshToken,
+        })
+
+        const isEmployerUser = Array.isArray(result.user?.roles) && result.user.roles.includes('employer')
+        // Check onboarding and redirect
+        await checkOnboardingAndRedirect(isEmployerState || isEmployerUser)
+      } catch (error) {
+        console.error('Error processing Google callback:', error)
+        navigate(state === 'employer' ? '/employer-signin' : '/signin', { replace: true })
+      }
+    }
+
+    processCallback()
   }, [searchParams, navigate, login])
 
   return (
