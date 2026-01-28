@@ -205,6 +205,13 @@ export const api = {
     return handleApiError(response)
   },
 
+  async closeJob(jobId) {
+    const response = await authenticatedFetch(`/jobs/${jobId}/close`, {
+      method: 'PUT',
+    })
+    return handleApiError(response)
+  },
+
   async runJobMatching(jobId) {
     const response = await authenticatedFetch(`/jobs/${jobId}/run-matching`, {
       method: 'POST',
@@ -238,6 +245,28 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     })
+    return handleApiError(response)
+  },
+
+  async listMessageTemplates() {
+    const response = await authenticatedFetch('/messages/templates')
+    return handleApiError(response)
+  },
+
+  async sendMessage(payload) {
+    const response = await authenticatedFetch('/messages/send', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    return handleApiError(response)
+  },
+
+  async listMessageLogs(jobId, candidateId) {
+    const params = new URLSearchParams()
+    if (jobId) params.append('jobId', jobId)
+    if (candidateId) params.append('candidateId', candidateId)
+    const query = params.toString() ? `?${params.toString()}` : ''
+    const response = await authenticatedFetch(`/messages/logs${query}`)
     return handleApiError(response)
   },
 

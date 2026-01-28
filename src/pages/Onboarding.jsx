@@ -5,6 +5,7 @@ import SocialSidebar from '../components/SocialSidebar'
 import DashboardHeader from '../components/DashboardHeader'
 import { setOnboardingStatus, OnboardingStatus, completeOnboarding, getOnboardingStatus, checkOnboardingComplete } from '../utils/onboarding'
 import { useAuth } from '../hooks/useAuth'
+import { useLogout } from '../hooks/useLogout'
 import { api } from '../utils/api'
 import ErrorMessage from '../components/common/ErrorMessage'
 import LoadingSpinner from '../components/common/LoadingSpinner'
@@ -13,6 +14,7 @@ const Onboarding = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { signupData, user, updateUser, accessToken, isAuthenticated } = useAuth()
+  const handleLogout = useLogout('/signin')
   const [currentStep, setCurrentStep] = useState(1)
   const [errors, setErrors] = useState({})
   const [isSaving, setIsSaving] = useState(false)
@@ -820,15 +822,6 @@ const Onboarding = () => {
   const userEmail = user?.email || ''
   const userInitial = (user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()
 
-  const handleLogout = async () => {
-    try {
-      await api.logout()
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      navigate('/')
-    }
-  }
 
   if (isLoadingProgress) {
     return (

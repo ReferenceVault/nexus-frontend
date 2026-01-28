@@ -46,6 +46,7 @@ function App() {
         <Route path="/employer-onboarding" element={<ProtectedRoute><EmployerOnboarding /></ProtectedRoute>} />
         <Route path="/employer-dashboard" element={<ProtectedRoute><EmployerDashboard /></ProtectedRoute>} />
         <Route path="/employer-jobs/:jobId" element={<ProtectedRoute><EmployerJobDetails /></ProtectedRoute>} />
+        <Route path="/employer-jobs/:jobId/candidates/:candidateId" element={<ProtectedRoute><EmployerJobDetails /></ProtectedRoute>} />
         <Route path="/employer-signin" element={<PublicRoute><EmployerAuth /></PublicRoute>} />
         <Route path="/employer-signup" element={<PublicRoute><EmployerAuth /></PublicRoute>} />
         <Route path="/assessments/:id?" element={<ProtectedRoute><Assessment /></ProtectedRoute>} />

@@ -6,11 +6,13 @@ import DashboardHeader from '../components/DashboardHeader'
 import DashboardSidebar from '../components/DashboardSidebar'
 import { api } from '../utils/api'
 import { useAuth } from '../hooks/useAuth'
+import { useLogout } from '../hooks/useLogout'
 
 const UserDashboard = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, logout, updateUser, isAuthenticated, accessToken } = useAuth()
+  const { user, updateUser, isAuthenticated, accessToken } = useAuth()
+  const handleLogout = useLogout('/signin')
   const profileFormRef = useRef(null)
   
   const [activeView, setActiveView] = useState('overview')
@@ -151,16 +153,6 @@ const UserDashboard = () => {
     }
   }, [activeView])
 
-  const handleLogout = async () => {
-    try {
-      await api.logout()
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      logout()
-      navigate('/')
-    }
-  }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target

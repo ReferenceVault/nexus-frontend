@@ -4,10 +4,12 @@ import DashboardHeader from '../components/DashboardHeader'
 import DashboardSidebar from '../components/DashboardSidebar'
 import { api } from '../utils/api'
 import { useAuth } from '../hooks/useAuth'
+import { useLogout } from '../hooks/useLogout'
 
 const EmployerDashboard = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const handleLogout = useLogout('/employer-signup')
   const [activeView, setActiveView] = useState('overview')
   const [jobs, setJobs] = useState([])
   const [selectedJobId, setSelectedJobId] = useState('')
@@ -15,6 +17,17 @@ const EmployerDashboard = () => {
   const [isLoadingJobs, setIsLoadingJobs] = useState(false)
   const [isLoadingMatches, setIsLoadingMatches] = useState(false)
   const [isRunningMatch, setIsRunningMatch] = useState(false)
+  const [messageTemplates, setMessageTemplates] = useState([])
+  const [messageLogs, setMessageLogs] = useState([])
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false)
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [messageType, setMessageType] = useState('INTERVIEW_REQUEST')
+  const [messageSubject, setMessageSubject] = useState('')
+  const [messageBody, setMessageBody] = useState('')
+  const [messageDetail, setMessageDetail] = useState('')
+  const [messageAssessment, setMessageAssessment] = useState('')
+  const [messageOtherRoles, setMessageOtherRoles] = useState('')
   const [matchFilter, setMatchFilter] = useState('ALL')
   const [updatingMatchId, setUpdatingMatchId] = useState(null)
   const [formData, setFormData] = useState({
@@ -50,6 +63,7 @@ const EmployerDashboard = () => {
       setIsLoadingJobs(false)
     }
   }
+
 
   const loadMatches = async (jobId) => {
     if (!jobId) return
@@ -176,6 +190,110 @@ const EmployerDashboard = () => {
     }
   }
 
+  const getTemplateByType = (type) =>
+    messageTemplates.find((template) => template.type === type)
+
+  const buildPreview = (templateText, match) => {
+    const candidateName = match?.candidate
+      ? `${match.candidate.firstName || ''} ${match.candidate.lastName || ''}`.trim() || 'Candidate'
+      : 'Candidate'
+    const jobTitle = jobs.find((job) => job.id === selectedJobId)?.title || 'the role'
+    const companyName = 'Company / HR Team'
+    let text = templateText || ''
+    const replacements = {
+      Candidate: candidateName,
+      Role: jobTitle,
+      Company: companyName,
+      'Company / HR Team': companyName,
+      Detail: messageDetail || 'the requested detail',
+      Assessment: messageAssessment || 'the assessment',
+      OtherRoles: messageOtherRoles || 'other roles',
+    }
+    Object.entries(replacements).forEach(([key, value]) => {
+      text = text.replaceAll(`[${key}]`, value)
+    })
+    return text
+  }
+
+  const openMessageComposer = async (match, type) => {
+    setDetailMatch(match)
+    setMessageType(type)
+    if (!messageTemplates.length) {
+      setIsLoadingTemplates(true)
+      try {
+        const templates = await api.listMessageTemplates()
+        setMessageTemplates(templates || [])
+      } finally {
+        setIsLoadingTemplates(false)
+      }
+    }
+    if (selectedJobId && match?.candidateId) {
+      setIsLoadingLogs(true)
+      try {
+        const logs = await api.listMessageLogs(selectedJobId, match.candidateId)
+        setMessageLogs(logs || [])
+      } catch (err) {
+        setMessageLogs([])
+      } finally {
+        setIsLoadingLogs(false)
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!detailMatch) return
+    const template = getTemplateByType(messageType)
+    setMessageSubject(buildPreview(template?.subject || '', detailMatch))
+    setMessageBody(buildPreview(template?.body || '', detailMatch))
+  }, [
+    messageType,
+    messageTemplates,
+    detailMatch,
+    messageDetail,
+    messageAssessment,
+    messageOtherRoles,
+  ])
+
+  const handleSendMessage = async () => {
+    if (!detailMatch || !selectedJobId) return
+    setIsSendingMessage(true)
+    setError(null)
+    try {
+      await api.sendMessage({
+        jobId: selectedJobId,
+        candidateId: detailMatch.candidateId,
+        type: messageType,
+        subject: messageSubject,
+        body: messageBody,
+        placeholders: {
+          Detail: messageDetail,
+          Assessment: messageAssessment,
+          OtherRoles: messageOtherRoles,
+        },
+      })
+      setToast({
+        type: 'success',
+        message: 'Message queued successfully.',
+      })
+      const logs = await api.listMessageLogs(selectedJobId, detailMatch.candidateId)
+      setMessageLogs(logs || [])
+    } catch (err) {
+      setError(err.message || 'Failed to send message.')
+    } finally {
+      setIsSendingMessage(false)
+    }
+  }
+
+  const handleCloseDetail = () => {
+    setDetailMatch(null)
+    setMessageLogs([])
+    setMessageSubject('')
+    setMessageBody('')
+    setMessageDetail('')
+    setMessageAssessment('')
+    setMessageOtherRoles('')
+  }
+
   const handleNextAction = (actionLabel, match) => {
     const candidateName = match?.candidate
       ? `${match.candidate.firstName || ''} ${match.candidate.lastName || ''}`.trim() || 'Candidate'
@@ -217,7 +335,7 @@ const EmployerDashboard = () => {
         userEmail={userEmail}
         userInitial={userInitial}
         onProfile={() => navigate('/employer-onboarding')}
-        onLogout={() => navigate('/')}
+        onLogout={handleLogout}
         breadcrumbs={[{ label: 'Employer Dashboard', href: '/employer-dashboard' }]}
         title=""
         subtitle=""
@@ -539,7 +657,7 @@ const EmployerDashboard = () => {
                           </span>
                           <div className="text-xs font-semibold text-indigo-600">{match.matchScore}% Fit</div>
                           <button
-                            onClick={() => setDetailMatch(match)}
+                            onClick={() => navigate(`/employer-jobs/${selectedJobId}/candidates/${match.candidateId}`)}
                             className="text-xs text-primary hover:underline"
                           >
                             View Details
@@ -576,10 +694,10 @@ const EmployerDashboard = () => {
 
       {detailMatch && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-lg max-w-lg w-full p-5">
+          <div className="bg-white rounded-xl shadow-lg max-w-3xl w-full max-h-[84vh] overflow-y-auto p-5">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-semibold text-neutral-900">Candidate Details</h4>
-              <button onClick={() => setDetailMatch(null)} className="text-neutral-500 hover:text-neutral-700">
+              <button onClick={handleCloseDetail} className="text-neutral-500 hover:text-neutral-700">
                 <i className="fa-solid fa-xmark"></i>
               </button>
             </div>
@@ -601,6 +719,101 @@ const EmployerDashboard = () => {
             </div>
             <div className="text-xs text-neutral-600 mb-4">
               Missing Skills: {(detailMatch.missingSkills?.required || []).join(', ') || 'None'}
+            </div>
+            <div className="border border-neutral-200 rounded-lg p-3 mb-4">
+              <div className="text-xs font-semibold text-neutral-700 mb-2">Send Message</div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {[
+                  { label: 'Interview Request', value: 'INTERVIEW_REQUEST' },
+                  { label: 'Additional Info', value: 'ADDITIONAL_INFO_REQUEST' },
+                  { label: 'Assessment Request', value: 'ASSESSMENT_REQUEST' },
+                  { label: 'Status On Hold', value: 'STATUS_ON_HOLD' },
+                  { label: 'Polite Rejection', value: 'POLITE_REJECTION' },
+                  { label: 'Rejection + Redirect', value: 'REJECTION_REDIRECT' },
+                ].map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={() => setMessageType(item.value)}
+                    className={`px-2.5 py-1 text-[10px] rounded-full border transition ${
+                      messageType === item.value
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white text-neutral-600 border-neutral-200 hover:border-indigo-200'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              {isLoadingTemplates ? (
+                <div className="text-xs text-neutral-500 mb-2">Loading templates...</div>
+              ) : null}
+              {(messageType === 'ADDITIONAL_INFO_REQUEST' || messageType === 'ASSESSMENT_REQUEST' || messageType === 'REJECTION_REDIRECT') && (
+                <div className="grid md:grid-cols-3 gap-2 mb-3">
+                  {messageType === 'ADDITIONAL_INFO_REQUEST' && (
+                    <input
+                      value={messageDetail}
+                      onChange={(e) => setMessageDetail(e.target.value)}
+                      className="px-2.5 py-1.5 text-xs border border-neutral-200 rounded-lg"
+                      placeholder="Specific detail"
+                    />
+                  )}
+                  {messageType === 'ASSESSMENT_REQUEST' && (
+                    <input
+                      value={messageAssessment}
+                      onChange={(e) => setMessageAssessment(e.target.value)}
+                      className="px-2.5 py-1.5 text-xs border border-neutral-200 rounded-lg"
+                      placeholder="Assessment details"
+                    />
+                  )}
+                  {messageType === 'REJECTION_REDIRECT' && (
+                    <input
+                      value={messageOtherRoles}
+                      onChange={(e) => setMessageOtherRoles(e.target.value)}
+                      className="px-2.5 py-1.5 text-xs border border-neutral-200 rounded-lg"
+                      placeholder="Other roles"
+                    />
+                  )}
+                </div>
+              )}
+              <input
+                value={messageSubject}
+                onChange={(e) => setMessageSubject(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs border border-neutral-200 rounded-lg mb-2"
+                placeholder="Subject"
+              />
+              <textarea
+                value={messageBody}
+                onChange={(e) => setMessageBody(e.target.value)}
+                rows={6}
+                className="w-full px-2.5 py-2 text-xs border border-neutral-200 rounded-lg"
+                placeholder="Message body"
+              />
+              <div className="flex items-center justify-between mt-2">
+                <button
+                  onClick={handleSendMessage}
+                  disabled={isSendingMessage}
+                  className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSendingMessage ? 'Sending...' : 'Send Message'}
+                </button>
+                <span className="text-[10px] text-neutral-500">Messages are queued and sent in background.</span>
+              </div>
+              <div className="mt-3">
+                <div className="text-[10px] font-semibold text-neutral-600 mb-1">Recent Messages</div>
+                {isLoadingLogs ? (
+                  <div className="text-[10px] text-neutral-500">Loading logs...</div>
+                ) : messageLogs.length ? (
+                  <div className="space-y-1">
+                    {messageLogs.slice(0, 4).map((log) => (
+                      <div key={log.id} className="text-[10px] text-neutral-600">
+                        {log.type} · {log.status} · {new Date(log.createdAt).toLocaleDateString()}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-neutral-500">No messages yet.</div>
+                )}
+              </div>
             </div>
             {normalizeStatus(detailMatch.status) === 'SHORTLISTED' && (
               <div className="mb-4">

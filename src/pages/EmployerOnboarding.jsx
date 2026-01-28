@@ -4,10 +4,12 @@ import DashboardHeader from '../components/DashboardHeader'
 import DashboardSidebar from '../components/DashboardSidebar'
 import { api } from '../utils/api'
 import { useAuth } from '../hooks/useAuth'
+import { useLogout } from '../hooks/useLogout'
 
 const EmployerOnboarding = () => {
   const navigate = useNavigate()
   const { user, login } = useAuth()
+  const handleLogout = useLogout('/employer-signup')
   const [isSaving, setIsSaving] = useState(false)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   const [error, setError] = useState(null)
@@ -93,7 +95,7 @@ const EmployerOnboarding = () => {
         userEmail={user?.email || ''}
         userInitial={(user?.firstName?.[0] || user?.email?.[0] || 'E').toUpperCase()}
         onProfile={() => navigate('/user-dashboard')}
-        onLogout={() => navigate('/')}
+        onLogout={handleLogout}
         breadcrumbs={[{ label: 'Employer Onboarding', href: '/employer-onboarding' }]}
         title="Employer Onboarding"
         subtitle=""

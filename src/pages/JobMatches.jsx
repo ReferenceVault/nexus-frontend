@@ -5,12 +5,14 @@ import SocialSidebar from '../components/SocialSidebar'
 import DashboardHeader from '../components/DashboardHeader'
 import DashboardSidebar from '../components/DashboardSidebar'
 import { useAuth } from '../hooks/useAuth'
+import { useLogout } from '../hooks/useLogout'
 import { api } from '../utils/api'
 import { getCandidateMenuItems, getCandidateQuickActions } from '../utils/candidateSidebar'
 
 const JobMatches = () => {
   const navigate = useNavigate()
-  const { user, logout, isAuthenticated, accessToken } = useAuth()
+  const { user, isAuthenticated, accessToken } = useAuth()
+  const handleLogout = useLogout('/signin')
   const [savedJobs, setSavedJobs] = useState(new Set())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
@@ -67,16 +69,6 @@ const JobMatches = () => {
   const userEmail = user?.email || ''
   const userInitial = (user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()
 
-  const handleLogout = async () => {
-    try {
-      await api.logout()
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      logout()
-      navigate('/')
-    }
-  }
 
   const toggleSaveJob = (jobId) => {
     setSavedJobs(prev => {

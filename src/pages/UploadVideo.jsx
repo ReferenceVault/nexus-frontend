@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../utils/api'
 import { useAuth } from '../hooks/useAuth'
+import { useLogout } from '../hooks/useLogout'
 import DashboardHeader from '../components/DashboardHeader'
 import DashboardSidebar from '../components/DashboardSidebar'
 import Footer from '../components/Footer'
@@ -11,7 +12,8 @@ import { getCandidateMenuItems, getCandidateQuickActions } from '../utils/candid
 
 const UploadVideo = () => {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
+  const handleLogout = useLogout('/signin')
   const fileInputRef = useRef(null)
   const videoRef = useRef(null)
   const [selectedFile, setSelectedFile] = useState(null)
@@ -197,16 +199,6 @@ const UploadVideo = () => {
     }
   }
 
-  const handleLogout = async () => {
-    try {
-      await api.logout()
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      logout()
-      navigate('/')
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50/30 via-white to-indigo-50/20 flex flex-col">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useLogout } from '../hooks/useLogout'
 import { checkOnboardingComplete } from '../utils/onboarding'
 import { api } from '../utils/api'
 
@@ -13,7 +14,8 @@ const Header = ({
 }) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, user, logout } = useAuth()
+  const { isAuthenticated, user } = useAuth()
+  const defaultLogout = useLogout('/signin')
   const [onboardingComplete, setOnboardingComplete] = useState(null)
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(false)
   
@@ -77,8 +79,7 @@ const Header = ({
     if (onLogout) {
       onLogout()
     } else {
-      logout()
-      navigate('/signin')
+      defaultLogout()
     }
   }
   

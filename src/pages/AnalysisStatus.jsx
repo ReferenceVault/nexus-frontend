@@ -9,12 +9,14 @@ import SocialSidebar from '../components/SocialSidebar'
 import DashboardHeader from '../components/DashboardHeader'
 import DashboardSidebar from '../components/DashboardSidebar'
 import { useAuth } from '../hooks/useAuth'
+import { useLogout } from '../hooks/useLogout'
 import { getCandidateMenuItems, getCandidateQuickActions } from '../utils/candidateSidebar'
 
 const AnalysisStatus = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { accessToken, isAuthenticated, user, logout } = useAuth()
+  const { accessToken, isAuthenticated, user } = useAuth()
+  const handleLogout = useLogout('/signin')
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -87,16 +89,6 @@ const AnalysisStatus = () => {
     }
   }, [id, isAuthenticated, accessToken, navigate])
 
-  const handleLogout = async () => {
-    try {
-      await api.logout()
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      logout()
-      navigate('/')
-    }
-  }
 
   const getStatusMessage = (status) => {
     switch (status) {

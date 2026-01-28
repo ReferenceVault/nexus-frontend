@@ -8,12 +8,14 @@ import LoadingSpinner from '../components/common/LoadingSpinner'
 import ErrorMessage from '../components/common/ErrorMessage'
 import { api } from '../utils/api'
 import { useAuth } from '../hooks/useAuth'
+import { useLogout } from '../hooks/useLogout'
 import { getCandidateMenuItems, getCandidateQuickActions } from '../utils/candidateSidebar'
 
 const Assessment = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { accessToken, isAuthenticated, user, logout, updateUser } = useAuth()
+  const { accessToken, isAuthenticated, user, updateUser } = useAuth()
+  const handleLogout = useLogout('/signin')
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -126,16 +128,6 @@ const Assessment = () => {
     fetchData()
   }, [id, isAuthenticated, accessToken, navigate])
 
-  const handleLogout = async () => {
-    try {
-      await api.logout()
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      logout()
-      navigate('/')
-    }
-  }
 
   if (loading || checkingResume) {
     return (
