@@ -14,7 +14,12 @@ const CombinedAuth = () => {
   const location = useLocation()
   const { login, setLoading, isLoading, error, setError, clearError, setSignupData, isAuthenticated, accessToken, user } = useAuth()
   const justSignedUpRef = useRef(false)
+  
+  // Read login intent from query params
+  const searchParams = new URLSearchParams(location.search)
+  const intent = searchParams.get('intent') || 'user' // Default to 'user' if not specified
 
+  console.log('🔄 CombinedAuth: intent:', intent)
   // Determine initial tab based on route or default to 'signin'
   const [activeTab, setActiveTab] = useState(() => {
     const path = location.pathname
@@ -33,48 +38,78 @@ const CombinedAuth = () => {
     }
   }, [location.pathname])
 
+  // Centralized helper: Resolve employer redirect destination
+  const resolveEmployerRedirect = async () => {
+    try {
+      const profile = await api.getEmployerProfile()
+      return '/employer-dashboard'
+    } catch (error) {
+      return '/employer-onboarding'
+    }
+  }
+
   // Redirect if already authenticated (but not during sign-in flow)
-  // This useEffect only runs if user is already authenticated when component mounts
-  // It should NOT interfere with the handleSignIn function's navigation
+  // This useEffect is the ONLY place that performs redirects after auth
   const isHandlingLoginRef = useRef(false)
   
   useEffect(() => {
-    // Skip if we just signed up
+    // Skip if we just signed up (signup handles its own redirect)
     if (justSignedUpRef.current) {
       justSignedUpRef.current = false
       return
     }
     
-    // Skip if we're currently handling login (let handleSignIn manage navigation)
+    // Skip if we're currently handling login (prevents race condition)
     if (isHandlingLoginRef.current) {
       return
     }
     
-    // Only redirect if already authenticated (not during active login)
+    // Only redirect if authenticated with valid token
     if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
-      console.log('🔄 CombinedAuth useEffect: User already authenticated, checking onboarding...')
-      if (Array.isArray(user?.roles) && user.roles.includes('employer')) {
-        navigate('/employer-dashboard', { replace: true })
+      console.log('🔄 CombinedAuth useEffect: User authenticated, using intent:', intent)
+      
+      // Use intent for redirection, not roles
+      if (intent === 'employer') {
+        const roles = user?.roles || []
+        if (!Array.isArray(roles) || !roles.includes('employer')) {
+          // User doesn't have employer role, show error
+          setError('You need an employer account to access this page. Please sign up as an employer.')
+          return
+        }
+        // Resolve employer redirect using centralized helper
+        resolveEmployerRedirect().then(path => {
+          // Store dashboard type for back button navigation
+          if (path === '/employer-dashboard') {
+            sessionStorage.setItem('lastDashboardType', 'employer')
+          }
+          navigate(path, { replace: true })
+          isHandlingLoginRef.current = false // Clear flag immediately after navigation
+        })
         return
       }
+      
+      // Default to user flow
       const checkOnboarding = async () => {
         try {
           const onboardingComplete = await checkOnboardingComplete(api)
           console.log('🔄 CombinedAuth useEffect - onboardingComplete:', onboardingComplete)
 
-          if (onboardingComplete) {
-            navigate('/user-dashboard', { replace: true })
-          } else {
-            navigate('/onboarding', { replace: true })
+          const path = onboardingComplete ? '/user-dashboard' : '/onboarding'
+          // Store dashboard type for back button navigation
+          if (path === '/user-dashboard') {
+            sessionStorage.setItem('lastDashboardType', 'user')
           }
+          navigate(path, { replace: true })
+          isHandlingLoginRef.current = false // Clear flag immediately after navigation
         } catch (error) {
           console.error('Error checking onboarding:', error)
           navigate('/onboarding', { replace: true })
+          isHandlingLoginRef.current = false // Clear flag immediately after navigation
         }
       }
       checkOnboarding()
     }
-  }, [isAuthenticated, accessToken, navigate, user])
+  }, [isAuthenticated, accessToken, navigate, user, intent])
 
   // Sign In form state
   const [signInData, setSignInData] = useState({
@@ -144,46 +179,35 @@ const CombinedAuth = () => {
     e?.preventDefault()
     setLoading(true)
     clearError()
-    isHandlingLoginRef.current = true // Prevent useEffect from interfering
+    isHandlingLoginRef.current = true // Prevent useEffect from interfering during auth
     
     try {
       const response = await api.login(signInData.email, signInData.password)
       
-      login(response.user, response.tokens)
+      // Validate role against intent BEFORE setting auth state
+      const userRoles = response.user?.roles || []
+      const hasEmployerRole = Array.isArray(userRoles) && userRoles.includes('employer')
       
-      if (Array.isArray(response.user?.roles) && response.user.roles.includes('employer')) {
-        navigate('/employer-dashboard', { replace: true })
+      if (intent === 'employer' && !hasEmployerRole) {
+        setError('You need an employer account to access this page. Please sign up as an employer.')
+        setErrors({ submit: 'You need an employer account to access this page. Please sign up as an employer.' })
+        isHandlingLoginRef.current = false // Clear flag on validation failure
         return
       }
       
-      console.log('🔐 Login successful, checking onboarding status...')
+      // Set auth state - useEffect will handle redirect
+      login(response.user, response.tokens)
       
-      // Check onboarding status using centralized function
-      try {
-        const onboardingComplete = await checkOnboardingComplete(api)
-        console.log('🔐 handleSignIn - onboardingComplete:', onboardingComplete)
-
-        if (onboardingComplete) {
-          console.log('✅ Redirecting to user-dashboard')
-          navigate('/user-dashboard', { replace: true })
-        } else {
-          console.log('❌ Redirecting to onboarding')
-          navigate('/onboarding', { replace: true })
-        }
-      } catch (error) {
-        console.error('❌ Error checking onboarding status:', error)
-        navigate('/onboarding', { replace: true })
-      }
+      // Clear flag immediately after login - useEffect will run on next render cycle
+      // This allows useEffect to perform redirect after state updates
+      isHandlingLoginRef.current = false
     } catch (error) {
       const errorMessage = error.message || 'Invalid email or password'
       setError(errorMessage)
       setErrors({ submit: errorMessage })
+      isHandlingLoginRef.current = false // Clear flag on error
     } finally {
       setLoading(false)
-      // Reset after a delay to allow navigation to complete
-      setTimeout(() => {
-        isHandlingLoginRef.current = false
-      }, 1000)
     }
   }
 
@@ -223,7 +247,13 @@ const CombinedAuth = () => {
 
   const handleGoogleAuth = () => {
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-    window.location.href = `${API_BASE_URL}/auth/google`
+    // Use employer-specific endpoint for employer intent (sets state=employer via guard)
+    // For user intent, use regular endpoint (state will default to user in callback)
+    if (intent === 'employer') {
+      window.location.href = `${API_BASE_URL}/auth/employer/google`
+    } else {
+      window.location.href = `${API_BASE_URL}/auth/google`
+    }
   }
 
   const switchTab = (tab) => {
