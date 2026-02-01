@@ -182,7 +182,7 @@ const Header = ({
                 <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-neutral-50 py-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
                   <span
                     className="block px-6 py-3 text-neutral-900 hover:bg-neutral-50 hover:text-primary transition cursor-pointer"
-                    onClick={() => navigate('/employer-signin')}
+                    onClick={() => navigate('/employer-signin?intent=employer')}
                   >
                     Post Jobs
                   </span>
@@ -201,7 +201,7 @@ const Header = ({
                 <>
                   <button 
                     className="bg-white border border-neutral-200 text-neutral-900 px-2.5 py-1.5 rounded-lg text-sm font-medium hover:bg-neutral-50 transition flex items-center shadow-sm"
-                    onClick={() => navigate('/employer-signin')}
+                    onClick={() => navigate('/employer-signin?intent=employer')}
                   >
                     <div className="w-4 h-4 bg-neutral-900 rounded-full flex items-center justify-center mr-1.5">
                       <i className="fa-solid fa-plus text-white text-[10px]"></i>
@@ -210,7 +210,7 @@ const Header = ({
                   </button>
                   <button 
                     className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-2.5 py-1.5 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 transition flex items-center shadow-sm"
-                    onClick={() => navigate('/signin')}
+                    onClick={() => navigate('/signin?intent=user')}
                   >
                     <i className="fa-solid fa-video w-3.5 h-3.5 mr-1.5"></i>
                     Upload Resume

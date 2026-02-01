@@ -6,14 +6,22 @@ import SocialSidebar from '../components/SocialSidebar'
 import { api } from '../utils/api'
 import { useAuth } from '../hooks/useAuth'
 import ErrorMessage from '../components/common/ErrorMessage'
-import { isTokenExpired } from '../utils/apiClient'
+import { isTokenExpired, authenticatedFetch } from '../utils/apiClient'
 
 const EmployerAuth = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { login, setLoading, isLoading, error, setError, clearError, isAuthenticated, accessToken, user, logout } = useAuth()
   const justSignedUpRef = useRef(false)
-  const isHandlingLoginRef = useRef(false)
+  
+  // Read login intent from query params - explicitly require 'employer' for this page
+  // Intent is preserved consistently for email/password and Google auth flows
+  const searchParams = new URLSearchParams(location.search)
+  const intent = searchParams.get('intent') || 'employer'
+  
+  // Standardize: This page always uses employer intent
+  // Preserve intent from query params for consistency with intent-based system
+  const employerIntent = intent === 'employer' ? 'employer' : 'employer' // Always employer for this page
 
   const [activeTab, setActiveTab] = useState(() => {
     const path = location.pathname
@@ -29,37 +37,93 @@ const EmployerAuth = () => {
     }
   }, [location.pathname])
 
-  const checkEmployerOnboarding = async () => {
+  // Centralized helper: Resolve employer redirect destination
+  // Differentiates between "profile not found" (404) and real API/network errors
+  const resolveEmployerRedirect = async () => {
     try {
-      const profile = await api.getEmployerProfile()
-      return !!profile
-    } catch (err) {
-      return false
+      // Use authenticatedFetch directly to check response status before handleApiError
+      // Pass retryOn401=false to preserve 401 status for handling
+      const response = await authenticatedFetch('/employers/me', {}, false)
+      
+      if (response.ok) {
+        // Profile exists - redirect to dashboard
+        await response.json().catch(() => {}) // Consume response body
+        return { path: '/employer-dashboard', error: null }
+      } else if (response.status === 404) {
+        // Profile not found (404) - redirect to onboarding
+        // This is expected for new employers who haven't completed onboarding
+        await response.json().catch(() => {}) // Consume response body if any
+        return { path: '/employer-onboarding', error: null }
+      } else if (response.status === 401) {
+        // Unauthorized - token refresh will handle logout via authenticatedFetch
+        // Return null to prevent redirect, let auth system handle it
+        return { path: null, error: null }
+      } else {
+        // Other API error (500, 403, etc.) - show error, don't redirect
+        // This prevents silently redirecting users to onboarding on server errors
+        const errorData = await response.json().catch(() => ({ message: 'Failed to load employer profile' }))
+        return { path: null, error: errorData.message || 'Failed to load employer profile' }
+      }
+    } catch (error) {
+      // Network error or token refresh failure
+      const errorMessage = error.message || 'Network error. Please check your connection and try again.'
+      
+      // If it's a session expiry error, don't show it here - let token refresh handle it
+      if (errorMessage.includes('Session expired') || errorMessage.includes('sign in again')) {
+        // Token refresh will handle logout, just return null to prevent redirect
+        return { path: null, error: null }
+      }
+      
+      // Real network error - show error, don't redirect
+      // This prevents silently redirecting users to onboarding on network failures
+      return { path: null, error: errorMessage }
     }
   }
 
   useEffect(() => {
+    // Skip if we just signed up (signup handles its own redirect)
     if (justSignedUpRef.current) {
       justSignedUpRef.current = false
       return
     }
 
-    if (isHandlingLoginRef.current) {
+    // Handle expired token: force logout if token is expired but user appears authenticated
+    if (isAuthenticated && accessToken && isTokenExpired(accessToken)) {
+      console.warn('Token expired on auth page - forcing logout')
+      logout()
+      setError('Your session has expired. Please sign in again.')
       return
     }
 
+    // Only redirect if authenticated with valid token
     if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
-      const roles = user?.roles || []
-      if (!roles.includes('employer')) {
-        return
+      // Validate employer intent and role
+      if (employerIntent === 'employer') {
+        const roles = user?.roles || []
+        if (!Array.isArray(roles) || !roles.includes('employer')) {
+          // User doesn't have employer role
+          setError('You need an employer account to access this page. Please sign up as an employer.')
+          return
+        }
+        
+        // Resolve employer redirect using centralized helper
+        resolveEmployerRedirect().then(({ path, error: redirectError }) => {
+          if (redirectError) {
+            // Real API/network error - show error, don't redirect
+            setError(redirectError)
+          } else if (path) {
+            // Store dashboard type for back button navigation
+            if (path === '/employer-dashboard') {
+              sessionStorage.setItem('lastDashboardType', 'employer')
+            }
+            // Valid redirect path - navigate
+            navigate(path, { replace: true })
+          }
+          // If path is null and no error, token refresh is handling logout
+        })
       }
-      const redirectEmployer = async () => {
-        const hasOnboarded = await checkEmployerOnboarding()
-        navigate(hasOnboarded ? '/employer-dashboard' : '/employer-onboarding', { replace: true })
-      }
-      redirectEmployer()
     }
-  }, [isAuthenticated, accessToken, user, navigate])
+  }, [isAuthenticated, accessToken, user, navigate, employerIntent, logout])
 
   const [signInData, setSignInData] = useState({
     email: '',
@@ -126,29 +190,26 @@ const EmployerAuth = () => {
     e?.preventDefault()
     setLoading(true)
     clearError()
-    isHandlingLoginRef.current = true
 
     try {
       const response = await api.login(signInData.email, signInData.password)
-      login(response.user, response.tokens)
-
+      
+      // Validate role against intent BEFORE setting auth state
       const roles = response.user?.roles || []
-      if (!roles.includes('employer')) {
+      if (employerIntent === 'employer' && !roles.includes('employer')) {
         logout()
-        throw new Error('Please use candidate sign in for job seeker accounts.')
+        throw new Error('You need an employer account to access this page. Please sign up as an employer.')
       }
 
-      const hasOnboarded = await checkEmployerOnboarding()
-      navigate(hasOnboarded ? '/employer-dashboard' : '/employer-onboarding', { replace: true })
+      // Set auth state - useEffect will handle redirect based on state change
+      // No ref needed - React state updates will trigger useEffect naturally
+      login(response.user, response.tokens)
     } catch (err) {
       const errorMessage = err.message || 'Invalid email or password'
       setError(errorMessage)
       setErrors({ submit: errorMessage })
     } finally {
       setLoading(false)
-      setTimeout(() => {
-        isHandlingLoginRef.current = false
-      }, 1000)
     }
   }
 
@@ -180,6 +241,8 @@ const EmployerAuth = () => {
 
   const handleGoogleAuth = () => {
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    // Use employer-specific endpoint which sets state=employer
+    // Intent is preserved via OAuth state parameter
     window.location.href = `${API_BASE_URL}/auth/employer/google`
   }
 

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import Header from '../components/Header'
 import SocialSidebar from '../components/SocialSidebar'
 import Hero from '../components/Hero'
@@ -20,15 +20,42 @@ import { isTokenExpired } from '../utils/apiClient'
 const Home = () => {
   useScrollEffect()
   const navigate = useNavigate()
+  const location = useLocation()
   const { isAuthenticated, accessToken, user } = useAuth()
   const isEmployer = Array.isArray(user?.roles) && user.roles.includes('employer')
 
-  // Redirect authenticated users to user dashboard
+  // Redirect authenticated users - respect user's current context, not just roles
   useEffect(() => {
     if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
-      navigate(isEmployer ? '/employer-dashboard' : '/user-dashboard', { replace: true })
+      // Check if user came from a specific dashboard context (stored in sessionStorage)
+      const lastDashboardType = sessionStorage.getItem('lastDashboardType')
+      
+      // If we have a stored dashboard preference, use it
+      if (lastDashboardType === 'user') {
+        navigate('/user-dashboard', { replace: true })
+        return
+      } else if (lastDashboardType === 'employer') {
+        navigate('/employer-dashboard', { replace: true })
+        return
+      }
+      
+      // If no stored preference, check if user has employer role
+      // But default to user-dashboard to respect user intent flow
+      // Only redirect to employer-dashboard if user ONLY has employer role (not both)
+      const userRoles = user?.roles || []
+      const hasUserRole = Array.isArray(userRoles) && userRoles.includes('user')
+      const hasEmployerRole = Array.isArray(userRoles) && userRoles.includes('employer')
+      
+      // If user has both roles, default to user-dashboard (safer default)
+      // If user only has employer role, redirect to employer-dashboard
+      if (hasEmployerRole && !hasUserRole) {
+        navigate('/employer-dashboard', { replace: true })
+      } else {
+        // Default to user-dashboard (respects user intent flow)
+        navigate('/user-dashboard', { replace: true })
+      }
     }
-  }, [isAuthenticated, accessToken, isEmployer, navigate])
+  }, [isAuthenticated, accessToken, user, navigate])
 
   // Don't render home page content if authenticated (will redirect)
   if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
