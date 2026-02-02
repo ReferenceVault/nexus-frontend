@@ -45,11 +45,6 @@ export const api = {
     return handleApiError(response)
   },
 
-  async getAuthMe() {
-    const response = await authenticatedFetch('/auth/me')
-    return handleApiError(response)
-  },
-
   async refreshToken() {
     // This is now handled automatically by authenticatedFetch
     // Keeping for backward compatibility but it's not needed

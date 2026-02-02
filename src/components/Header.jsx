@@ -25,6 +25,12 @@ const Header = ({
   const isUser = Array.isArray(userRoles) && userRoles.includes('user')
   const hasBothRoles = isEmployer && isUser
 
+
+  console.log("=============userRoles", userRoles)
+  console.log("=============isEmployer", isEmployer)
+  console.log("=============isUser", isUser)
+  console.log("=============hasBothRoles", hasBothRoles)
+
   // Fetch fresh user data if roles are missing
   React.useEffect(() => {
     if (isAuthenticated && user && (!user.roles || user.roles.length === 0)) {
@@ -111,7 +117,8 @@ const Header = ({
       defaultLogout()
     }
   }
-  
+  console.log("=============hasBothRoles", hasBothRoles)
+  console.log("=============user", user)
   return (
     <header id="header" className="bg-white shadow-sm border-b border-neutral-50 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
