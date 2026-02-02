@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DashboardHeader from '../components/DashboardHeader'
 import DashboardSidebar from '../components/DashboardSidebar'
@@ -49,6 +49,19 @@ const EmployerDashboard = () => {
   const userEmail = user?.email || ''
   const userInitial = (user?.firstName?.[0] || user?.email?.[0] || 'E').toUpperCase()
 
+  // Memoize menu item handlers to prevent unnecessary re-renders
+  const handleMenuClick = useCallback((view) => {
+    console.log('Menu clicked, changing view to:', view)
+    setActiveView((prev) => {
+      console.log('Setting activeView from', prev, 'to', view)
+      if (prev === view) {
+        console.log('View is already', view, '- skipping update')
+        return prev
+      }
+      return view
+    })
+  }, [])
+
   const loadJobs = async () => {
     setIsLoadingJobs(true)
     try {
@@ -70,9 +83,12 @@ const EmployerDashboard = () => {
     setIsLoadingMatches(true)
     try {
       const data = await api.getJobMatches(jobId)
-      setMatches(data || [])
+      // Handle both old format (array) and new format ({ matches: [] })
+      const matchesArray = Array.isArray(data) ? data : (data?.matches || [])
+      setMatches(matchesArray)
     } catch (err) {
       setError(err.message || 'Failed to load matches.')
+      setMatches([]) // Set empty array on error
     } finally {
       setIsLoadingMatches(false)
     }
@@ -348,10 +364,10 @@ const EmployerDashboard = () => {
           onToggleCollapse={() => {}}
           activeView={activeView}
           menuItems={[
-            { id: 'overview', label: 'Overview', icon: 'fa-solid fa-chart-line', onClick: () => setActiveView('overview') },
-            { id: 'jobs', label: 'Jobs', icon: 'fa-solid fa-briefcase', onClick: () => setActiveView('jobs') },
-            { id: 'create-job', label: 'Create Job', icon: 'fa-solid fa-plus', onClick: () => setActiveView('create-job') },
-            { id: 'matches', label: 'AI Shortlist', icon: 'fa-solid fa-user-check', onClick: () => setActiveView('matches') },
+            { id: 'overview', label: 'Overview', icon: 'fa-solid fa-chart-line', onClick: () => handleMenuClick('overview') },
+            { id: 'jobs', label: 'Jobs', icon: 'fa-solid fa-briefcase', onClick: () => handleMenuClick('jobs') },
+            { id: 'create-job', label: 'Create Job', icon: 'fa-solid fa-plus', onClick: () => handleMenuClick('create-job') },
+            { id: 'matches', label: 'AI Shortlist', icon: 'fa-solid fa-user-check', onClick: () => handleMenuClick('matches') },
           ]}
           quickFilters={[
             { label: 'Onboarding', icon: 'fa-solid fa-building', onClick: () => navigate('/employer-onboarding') },

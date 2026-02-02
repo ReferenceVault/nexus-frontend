@@ -49,7 +49,9 @@ const EmployerJobDetails = () => {
         const jobData = await api.getJob(jobId)
         setJob(jobData)
         const matchData = await api.getJobMatches(jobId)
-        setMatches(matchData || [])
+        // Handle both old format (array) and new format ({ matches: [] })
+        const matchesArray = Array.isArray(matchData) ? matchData : (matchData?.matches || [])
+        setMatches(matchesArray)
       } catch (err) {
         setError(err.message || 'Failed to load job details.')
       } finally {
@@ -113,7 +115,9 @@ const EmployerJobDetails = () => {
       })
       setTimeout(async () => {
         const matchData = await api.getJobMatches(job.id)
-        setMatches(matchData || [])
+        // Handle both old format (array) and new format ({ matches: [] })
+        const matchesArray = Array.isArray(matchData) ? matchData : (matchData?.matches || [])
+        setMatches(matchesArray)
       }, 1500)
     } catch (err) {
       setError(err.message || 'Failed to run AI matching.')

@@ -34,7 +34,14 @@ const DashboardSidebar = ({
               return (
                 <button 
                   key={item.id}
-                  onClick={item.onClick}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (item.onClick) {
+                      item.onClick()
+                    }
+                  }}
                   className={`w-full flex items-center ${collapsed ? 'justify-center px-0' : 'px-4'} py-3 rounded-xl text-sm font-semibold transition-all duration-300 group relative ${
                     isActive
                       ? 'text-white bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg shadow-indigo-500/30'
