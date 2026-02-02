@@ -11,7 +11,7 @@ import { useLogout } from '../hooks/useLogout'
 const UserDashboard = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, isAuthenticated, accessToken } = useAuth()
+  const { user, isAuthenticated, accessToken, updateUser } = useAuth()
   const handleLogout = useLogout('/signin')
   const profileFormRef = useRef(null)
   

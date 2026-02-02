@@ -19,6 +19,7 @@ const EmployerJobDetails = () => {
   const [updatingMatchId, setUpdatingMatchId] = useState(null)
   const [toast, setToast] = useState(null)
   const [isRunningMatch, setIsRunningMatch] = useState(false)
+  const [isRefreshingMatches, setIsRefreshingMatches] = useState(false)
   const [messageTemplates, setMessageTemplates] = useState([])
   const [messageLogs, setMessageLogs] = useState([])
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
@@ -123,6 +124,26 @@ const EmployerJobDetails = () => {
       setError(err.message || 'Failed to run AI matching.')
     } finally {
       setIsRunningMatch(false)
+    }
+  }
+
+  const handleRefreshMatches = async () => {
+    if (!job) return
+    setIsRefreshingMatches(true)
+    setError(null)
+    try {
+      const matchData = await api.getJobMatches(job.id)
+      // Handle both old format (array) and new format ({ matches: [] })
+      const matchesArray = Array.isArray(matchData) ? matchData : (matchData?.matches || [])
+      setMatches(matchesArray)
+      setToast({
+        type: 'success',
+        message: 'Matches refreshed.',
+      })
+    } catch (err) {
+      setError(err.message || 'Failed to refresh matches.')
+    } finally {
+      setIsRefreshingMatches(false)
     }
   }
 
@@ -550,13 +571,24 @@ const EmployerJobDetails = () => {
                     <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-indigo-200/50 shadow-md p-4">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-semibold text-neutral-900">AI Shortlist</h3>
-                        <button
-                          onClick={handleRunMatching}
-                          disabled={isRunningMatch}
-                          className="px-3 py-2 text-xs bg-indigo-50 text-primary rounded-lg hover:bg-indigo-100 transition disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                          {isRunningMatch ? 'Running...' : 'Run AI Matching'}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleRunMatching}
+                            disabled={isRunningMatch}
+                            className="px-3 py-2 text-xs bg-indigo-50 text-primary rounded-lg hover:bg-indigo-100 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {isRunningMatch ? 'Running...' : 'Run AI Matching'}
+                          </button>
+                          <button
+                            onClick={handleRefreshMatches}
+                            disabled={isRefreshingMatches}
+                            className="px-3 py-2 text-xs border border-neutral-300 text-neutral-700 rounded-lg hover:bg-neutral-50 transition flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
+                            title="Refresh matches"
+                          >
+                            <i className={`fa-solid fa-rotate text-xs ${isRefreshingMatches ? 'animate-spin' : ''}`}></i>
+                            Refresh
+                          </button>
+                        </div>
                       </div>
                       {matches.length ? (
                         <div className="space-y-3">
