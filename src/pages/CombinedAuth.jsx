@@ -14,7 +14,11 @@ const CombinedAuth = () => {
   const location = useLocation()
   const { login, setLoading, isLoading, error, setError, clearError, setSignupData, isAuthenticated, accessToken, user } = useAuth()
   const justSignedUpRef = useRef(false)
-
+  
+  // This page is for jobseekers/users only
+  // Read next param from query string for redirect after login
+  const searchParams = new URLSearchParams(location.search)
+  const next = searchParams.get('next')
   // Determine initial tab based on route or default to 'signin'
   const [activeTab, setActiveTab] = useState(() => {
     const path = location.pathname
@@ -33,48 +37,50 @@ const CombinedAuth = () => {
     }
   }, [location.pathname])
 
+
   // Redirect if already authenticated (but not during sign-in flow)
-  // This useEffect only runs if user is already authenticated when component mounts
-  // It should NOT interfere with the handleSignIn function's navigation
+  // This useEffect is the ONLY place that performs redirects after auth
   const isHandlingLoginRef = useRef(false)
   
   useEffect(() => {
-    // Skip if we just signed up
+    // Skip if we just signed up (signup handles its own redirect)
     if (justSignedUpRef.current) {
       justSignedUpRef.current = false
       return
     }
     
-    // Skip if we're currently handling login (let handleSignIn manage navigation)
+    // Skip if we're currently handling login (prevents race condition)
     if (isHandlingLoginRef.current) {
       return
     }
     
-    // Only redirect if already authenticated (not during active login)
+    // Only redirect if authenticated with valid token
     if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
-      console.log('🔄 CombinedAuth useEffect: User already authenticated, checking onboarding...')
-      if (Array.isArray(user?.roles) && user.roles.includes('employer')) {
-        navigate('/employer-dashboard', { replace: true })
+      // Handle next param if present
+      if (next) {
+        const nextPath = decodeURIComponent(next)
+        navigate(nextPath, { replace: true })
+        isHandlingLoginRef.current = false
         return
       }
+      
+      // Default to user flow - check onboarding
       const checkOnboarding = async () => {
         try {
           const onboardingComplete = await checkOnboardingComplete(api)
-          console.log('🔄 CombinedAuth useEffect - onboardingComplete:', onboardingComplete)
-
-          if (onboardingComplete) {
-            navigate('/user-dashboard', { replace: true })
-          } else {
-            navigate('/onboarding', { replace: true })
-          }
+          const path = onboardingComplete ? '/user-dashboard' : '/onboarding'
+          sessionStorage.setItem('lastDashboardType', 'user')
+          navigate(path, { replace: true })
+          isHandlingLoginRef.current = false
         } catch (error) {
           console.error('Error checking onboarding:', error)
           navigate('/onboarding', { replace: true })
+          isHandlingLoginRef.current = false
         }
       }
       checkOnboarding()
     }
-  }, [isAuthenticated, accessToken, navigate, user])
+  }, [isAuthenticated, accessToken, navigate, user, next])
 
   // Sign In form state
   const [signInData, setSignInData] = useState({
@@ -144,46 +150,25 @@ const CombinedAuth = () => {
     e?.preventDefault()
     setLoading(true)
     clearError()
-    isHandlingLoginRef.current = true // Prevent useEffect from interfering
+    isHandlingLoginRef.current = true // Prevent useEffect from interfering during auth
     
     try {
-      const response = await api.login(signInData.email, signInData.password)
+      // Pass 'user' as expected role for job seeker login
+      const response = await api.login(signInData.email, signInData.password, 'user')
       
+      // Set auth state - useEffect will handle redirect
       login(response.user, response.tokens)
       
-      if (Array.isArray(response.user?.roles) && response.user.roles.includes('employer')) {
-        navigate('/employer-dashboard', { replace: true })
-        return
-      }
-      
-      console.log('🔐 Login successful, checking onboarding status...')
-      
-      // Check onboarding status using centralized function
-      try {
-        const onboardingComplete = await checkOnboardingComplete(api)
-        console.log('🔐 handleSignIn - onboardingComplete:', onboardingComplete)
-
-        if (onboardingComplete) {
-          console.log('✅ Redirecting to user-dashboard')
-          navigate('/user-dashboard', { replace: true })
-        } else {
-          console.log('❌ Redirecting to onboarding')
-          navigate('/onboarding', { replace: true })
-        }
-      } catch (error) {
-        console.error('❌ Error checking onboarding status:', error)
-        navigate('/onboarding', { replace: true })
-      }
+      // Clear flag immediately after login - useEffect will run on next render cycle
+      // This allows useEffect to perform redirect after state updates
+      isHandlingLoginRef.current = false
     } catch (error) {
       const errorMessage = error.message || 'Invalid email or password'
       setError(errorMessage)
       setErrors({ submit: errorMessage })
+      isHandlingLoginRef.current = false // Clear flag on error
     } finally {
       setLoading(false)
-      // Reset after a delay to allow navigation to complete
-      setTimeout(() => {
-        isHandlingLoginRef.current = false
-      }, 1000)
     }
   }
 
@@ -223,6 +208,7 @@ const CombinedAuth = () => {
 
   const handleGoogleAuth = () => {
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    // This page is for jobseekers/users - use regular Google auth endpoint
     window.location.href = `${API_BASE_URL}/auth/google`
   }
 
@@ -230,7 +216,12 @@ const CombinedAuth = () => {
     setActiveTab(tab)
     setErrors({})
     clearError()
-    navigate(tab === 'signup' ? '/signup' : '/signin', { replace: true })
+    // Preserve next param when switching tabs
+    const searchParams = new URLSearchParams(location.search)
+    const nextParam = searchParams.get('next')
+    const url = tab === 'signup' ? '/signup' : '/signin'
+    const finalUrl = nextParam ? `${url}?next=${encodeURIComponent(nextParam)}` : url
+    navigate(finalUrl, { replace: true })
   }
 
   return (
@@ -262,14 +253,18 @@ const CombinedAuth = () => {
 
                 {/* Main Heading */}
                 <div>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-300 border border-purple-400/30 rounded-full backdrop-blur-sm mb-4">
+                    <i className="fa-solid fa-user-tie text-purple-300"></i>
+                    <span className="text-sm font-semibold">For Job Seekers</span>
+                  </div>
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 leading-tight">
-                    Welcome to{' '}
+                    Find Your Dream{' '}
                     <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                      Nexus
+                      Tech Job
                     </span>
                   </h1>
                   <p className="text-base md:text-lg text-slate-300 leading-relaxed">
-                    Create your account in seconds and start listing your profile to thousands of verified employers.
+                    Create your profile, upload your resume, and get matched with top tech companies in Canada.
                   </p>
                 </div>
 
@@ -368,9 +363,28 @@ const CombinedAuth = () => {
                     {activeTab === 'signin' ? (
                       <>
                         {/* Heading */}
-                        <h2 className="text-2xl font-bold text-neutral-900 text-center mb-6">
-                          Welcome Back
-                        </h2>
+                        <div className="text-center mb-6">
+                          <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+                            Welcome Back
+                          </h2>
+                          <p className="text-xs text-neutral-500">Sign in to your job seeker account</p>
+                          <div className="mt-3 text-xs text-neutral-600">
+                            Are you an employer?{' '}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = new URLSearchParams(location.search).get('next')
+                                const url = next 
+                                  ? `/employer-signin?next=${encodeURIComponent(next)}`
+                                  : '/employer-signin'
+                                navigate(url, { replace: true })
+                              }}
+                              className="text-indigo-600 hover:text-indigo-700 font-semibold"
+                            >
+                              Sign in as employer
+                            </button>
+                          </div>
+                        </div>
 
                         {/* Form */}
                         <form onSubmit={handleSignIn} className="space-y-4">
@@ -495,9 +509,28 @@ const CombinedAuth = () => {
                     ) : (
                       <>
                         {/* Heading */}
-                        <h2 className="text-3xl font-bold text-neutral-900 text-center mb-8">
-                          Create Account
-                        </h2>
+                        <div className="text-center mb-8">
+                          <h2 className="text-3xl font-bold text-neutral-900 mb-2">
+                            Create Account
+                          </h2>
+                          <p className="text-xs text-neutral-500 mb-3">Start your job search journey</p>
+                          <div className="text-xs text-neutral-600">
+                            Are you an employer?{' '}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = new URLSearchParams(location.search).get('next')
+                                const url = next 
+                                  ? `/employer-signup?next=${encodeURIComponent(next)}`
+                                  : '/employer-signup'
+                                navigate(url, { replace: true })
+                              }}
+                              className="text-indigo-600 hover:text-indigo-700 font-semibold"
+                            >
+                              Sign up as employer
+                            </button>
+                          </div>
+                        </div>
 
                         {/* Form */}
                         <form onSubmit={handleSignUp} className="space-y-5">

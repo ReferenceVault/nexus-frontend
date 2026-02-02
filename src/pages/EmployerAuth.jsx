@@ -6,14 +6,18 @@ import SocialSidebar from '../components/SocialSidebar'
 import { api } from '../utils/api'
 import { useAuth } from '../hooks/useAuth'
 import ErrorMessage from '../components/common/ErrorMessage'
-import { isTokenExpired } from '../utils/apiClient'
+import { isTokenExpired, authenticatedFetch } from '../utils/apiClient'
 
 const EmployerAuth = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { login, setLoading, isLoading, error, setError, clearError, isAuthenticated, accessToken, user, logout } = useAuth()
   const justSignedUpRef = useRef(false)
-  const isHandlingLoginRef = useRef(false)
+  
+  // This page is for employers only
+  // Read next param from query string for redirect after login
+  const searchParams = new URLSearchParams(location.search)
+  const next = searchParams.get('next')
 
   const [activeTab, setActiveTab] = useState(() => {
     const path = location.pathname
@@ -29,37 +33,94 @@ const EmployerAuth = () => {
     }
   }, [location.pathname])
 
-  const checkEmployerOnboarding = async () => {
+  // Centralized helper: Resolve employer redirect destination
+  // Differentiates between "profile not found" (404) and real API/network errors
+  const resolveEmployerRedirect = async () => {
     try {
-      const profile = await api.getEmployerProfile()
-      return !!profile
-    } catch (err) {
-      return false
+      // Use authenticatedFetch directly to check response status before handleApiError
+      // Pass retryOn401=false to preserve 401 status for handling
+      const response = await authenticatedFetch('/employers/me', {}, false)
+      
+      if (response.ok) {
+        // Profile exists - redirect to dashboard
+        await response.json().catch(() => {}) // Consume response body
+        return { path: '/employer-dashboard', error: null }
+      } else if (response.status === 404) {
+        // Profile not found (404) - redirect to onboarding
+        // This is expected for new employers who haven't completed onboarding
+        await response.json().catch(() => {}) // Consume response body if any
+        return { path: '/employer-onboarding', error: null }
+      } else if (response.status === 401) {
+        // Unauthorized - token refresh will handle logout via authenticatedFetch
+        // Return null to prevent redirect, let auth system handle it
+        return { path: null, error: null }
+      } else {
+        // Other API error (500, 403, etc.) - show error, don't redirect
+        // This prevents silently redirecting users to onboarding on server errors
+        const errorData = await response.json().catch(() => ({ message: 'Failed to load employer profile' }))
+        return { path: null, error: errorData.message || 'Failed to load employer profile' }
+      }
+    } catch (error) {
+      // Network error or token refresh failure
+      const errorMessage = error.message || 'Network error. Please check your connection and try again.'
+      
+      // If it's a session expiry error, don't show it here - let token refresh handle it
+      if (errorMessage.includes('Session expired') || errorMessage.includes('sign in again')) {
+        // Token refresh will handle logout, just return null to prevent redirect
+        return { path: null, error: null }
+      }
+      
+      // Real network error - show error, don't redirect
+      // This prevents silently redirecting users to onboarding on network failures
+      return { path: null, error: errorMessage }
     }
   }
 
   useEffect(() => {
+    // Skip if we just signed up (signup handles its own redirect)
     if (justSignedUpRef.current) {
       justSignedUpRef.current = false
       return
     }
 
-    if (isHandlingLoginRef.current) {
+    // Handle expired token: force logout if token is expired but user appears authenticated
+    if (isAuthenticated && accessToken && isTokenExpired(accessToken)) {
+      console.warn('Token expired on auth page - forcing logout')
+      logout()
+      setError('Your session has expired. Please sign in again.')
       return
     }
 
+    // Only redirect if authenticated with valid token
     if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
-      const roles = user?.roles || []
-      if (!roles.includes('employer')) {
+      // Get next param from query string
+      const searchParams = new URLSearchParams(location.search)
+      const next = searchParams.get('next')
+      
+      // If next param exists, redirect to it
+      if (next) {
+        const nextPath = decodeURIComponent(next)
+        navigate(nextPath, { replace: true })
         return
       }
-      const redirectEmployer = async () => {
-        const hasOnboarded = await checkEmployerOnboarding()
-        navigate(hasOnboarded ? '/employer-dashboard' : '/employer-onboarding', { replace: true })
-      }
-      redirectEmployer()
+      
+      // Resolve employer redirect using centralized helper
+      resolveEmployerRedirect().then(({ path, error: redirectError }) => {
+        if (redirectError) {
+          // Real API/network error - show error, don't redirect
+          setError(redirectError)
+        } else if (path) {
+          // Store dashboard type for back button navigation
+          if (path === '/employer-dashboard') {
+            sessionStorage.setItem('lastDashboardType', 'employer')
+          }
+          // Valid redirect path - navigate
+          navigate(path, { replace: true })
+        }
+        // If path is null and no error, token refresh is handling logout
+      })
     }
-  }, [isAuthenticated, accessToken, user, navigate])
+  }, [isAuthenticated, accessToken, user, navigate, logout, location.search])
 
   const [signInData, setSignInData] = useState({
     email: '',
@@ -126,29 +187,31 @@ const EmployerAuth = () => {
     e?.preventDefault()
     setLoading(true)
     clearError()
-    isHandlingLoginRef.current = true
 
     try {
-      const response = await api.login(signInData.email, signInData.password)
+      // Pass 'employer' as expected role for employer login
+      const response = await api.login(signInData.email, signInData.password, 'employer')
+      
+      // Get next param from query string
+      const searchParams = new URLSearchParams(location.search)
+      const next = searchParams.get('next')
+
+      // Set auth state - useEffect will handle redirect
       login(response.user, response.tokens)
 
-      const roles = response.user?.roles || []
-      if (!roles.includes('employer')) {
-        logout()
-        throw new Error('Please use candidate sign in for job seeker accounts.')
+      // If next param exists, redirect to it
+      if (next) {
+        const nextPath = decodeURIComponent(next)
+        navigate(nextPath, { replace: true })
+        setLoading(false)
+        return
       }
-
-      const hasOnboarded = await checkEmployerOnboarding()
-      navigate(hasOnboarded ? '/employer-dashboard' : '/employer-onboarding', { replace: true })
     } catch (err) {
       const errorMessage = err.message || 'Invalid email or password'
       setError(errorMessage)
       setErrors({ submit: errorMessage })
     } finally {
       setLoading(false)
-      setTimeout(() => {
-        isHandlingLoginRef.current = false
-      }, 1000)
     }
   }
 
@@ -180,6 +243,8 @@ const EmployerAuth = () => {
 
   const handleGoogleAuth = () => {
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    // Use employer-specific endpoint which sets state=employer
+    // Intent is preserved via OAuth state parameter
     window.location.href = `${API_BASE_URL}/auth/employer/google`
   }
 
@@ -187,7 +252,12 @@ const EmployerAuth = () => {
     setActiveTab(tab)
     setErrors({})
     clearError()
-    navigate(tab === 'signup' ? '/employer-signup' : '/employer-signin', { replace: true })
+    // Preserve next param when switching tabs
+    const searchParams = new URLSearchParams(location.search)
+    const nextParam = searchParams.get('next')
+    const url = tab === 'signup' ? '/employer-signup' : '/employer-signin'
+    const finalUrl = nextParam ? `${url}?next=${encodeURIComponent(nextParam)}` : url
+    navigate(finalUrl, { replace: true })
   }
 
   return (
@@ -212,10 +282,14 @@ const EmployerAuth = () => {
                 </div>
 
                 <div>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 rounded-full backdrop-blur-sm mb-4">
+                    <i className="fa-solid fa-building text-indigo-300"></i>
+                    <span className="text-sm font-semibold">For Employers</span>
+                  </div>
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 leading-tight">
-                    Welcome to{' '}
+                    Hire Top{' '}
                     <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                      Nexus
+                      Tech Talent
                     </span>
                   </h1>
                   <p className="text-base md:text-lg text-slate-300 leading-relaxed">
@@ -293,9 +367,28 @@ const EmployerAuth = () => {
 
                     {activeTab === 'signin' ? (
                       <>
-                        <h2 className="text-2xl font-bold text-neutral-900 text-center mb-6">
-                          Employer Sign In
-                        </h2>
+                        <div className="text-center mb-6">
+                          <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+                            Employer Sign In
+                          </h2>
+                          <p className="text-xs text-neutral-500">Sign in to your employer account</p>
+                          <div className="mt-3 text-xs text-neutral-600">
+                            Are you a job seeker?{' '}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = new URLSearchParams(location.search).get('next')
+                                const url = next 
+                                  ? `/signin?next=${encodeURIComponent(next)}`
+                                  : '/signin'
+                                navigate(url, { replace: true })
+                              }}
+                              className="text-indigo-600 hover:text-indigo-700 font-semibold"
+                            >
+                              Sign in as job seeker
+                            </button>
+                          </div>
+                        </div>
                         <form onSubmit={handleSignIn} className="space-y-4">
                           <div>
                             <label htmlFor="email" className="block text-sm font-semibold text-neutral-700 mb-2">
@@ -369,11 +462,30 @@ const EmployerAuth = () => {
                           </div>
                         </form>
                       </>
-                    ) : (
-                      <>
-                        <h2 className="text-3xl font-bold text-neutral-900 text-center mb-8">
-                          Create Employer Account
-                        </h2>
+                      ) : (
+                        <>
+                          <div className="text-center mb-8">
+                            <h2 className="text-3xl font-bold text-neutral-900 mb-2">
+                              Create Employer Account
+                            </h2>
+                            <p className="text-xs text-neutral-500 mb-3">Start hiring top tech talent</p>
+                            <div className="text-xs text-neutral-600">
+                              Are you a job seeker?{' '}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = new URLSearchParams(location.search).get('next')
+                                  const url = next 
+                                    ? `/signup?next=${encodeURIComponent(next)}`
+                                    : '/signup'
+                                  navigate(url, { replace: true })
+                                }}
+                                className="text-indigo-600 hover:text-indigo-700 font-semibold"
+                              >
+                                Sign up as job seeker
+                              </button>
+                            </div>
+                          </div>
                         <form onSubmit={handleSignUp} className="space-y-5">
                           <div className="grid grid-cols-2 gap-4">
                             <div>
@@ -510,6 +622,35 @@ const EmployerAuth = () => {
                             {isLoading ? 'Creating account...' : 'Create Employer Account'}
                           </button>
                         </form>
+
+                        {/* Or continue with */}
+                        <div className="mt-6">
+                          <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                              <div className="w-full border-t border-neutral-200"></div>
+                            </div>
+                            <div className="relative flex justify-center text-sm">
+                              <span className="px-3 bg-white/90 text-neutral-500 font-medium">Or continue with</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Sign up with Google */}
+                        <div className="mt-4">
+                          <button
+                            type="button"
+                            onClick={handleGoogleAuth}
+                            className="w-full inline-flex items-center justify-center py-3.5 px-6 border-2 border-neutral-300 rounded-xl bg-white text-neutral-700 font-semibold hover:bg-indigo-50 hover:border-primary transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                            </svg>
+                            <span>Sign up with Google</span>
+                          </button>
+                        </div>
                       </>
                     )}
                   </div>

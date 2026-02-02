@@ -1,5 +1,6 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './components/auth/AuthProvider'
 import Home from './pages/Home'
 import CreateProfile from './pages/CreateProfile'
 import ImportProfile from './pages/ImportProfile'
@@ -30,7 +31,8 @@ function App() {
         v7_relativeSplatPath: true,
       }}
     >
-      <Routes>
+      <AuthProvider>
+        <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/auth" element={<Navigate to="/signin" replace />} />
         <Route path="/signin" element={<PublicRoute><CombinedAuth /></PublicRoute>} />
@@ -54,7 +56,8 @@ function App() {
         <Route path="/import-profile" element={<ProtectedRoute><ImportProfile /></ProtectedRoute>} />
         <Route path="/job-matches" element={<ProtectedRoute><JobMatches /></ProtectedRoute>} />
         <Route path="/job-details/:jobId" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
-      </Routes>
+        </Routes>
+      </AuthProvider>
     </Router>
   )
 }

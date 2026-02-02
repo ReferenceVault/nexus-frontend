@@ -1,9 +1,11 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 import AnimatedBackground from './common/AnimatedBackground'
 
 const Hero = () => {
   const navigate = useNavigate()
+  const { isAuthenticated, user } = useAuth()
   
   const popularSkills = [
     'React',
@@ -84,7 +86,19 @@ const Hero = () => {
               <div className="flex flex-wrap gap-2.5">
                 <button 
                   className="bg-white text-indigo-600 hover:bg-indigo-50 shadow-lg px-3 py-2 rounded-lg text-sm font-medium transition flex items-center"
-                  onClick={() => navigate('/employer-signin')}
+                  onClick={() => {
+                    if (!isAuthenticated || !user) {
+                      navigate('/employer-signin?next=' + encodeURIComponent('/employer-dashboard'))
+                    } else {
+                      const roles = user?.roles || []
+                      const hasEmployerRole = Array.isArray(roles) && roles.includes('employer')
+                      if (hasEmployerRole) {
+                        navigate('/employer-dashboard')
+                      } else {
+                        navigate('/user-dashboard')
+                      }
+                    }
+                  }}
                 >
                   Post a Job for Free • Discover AI‑Verified Talent
                   <i className="fa-solid fa-arrow-right w-3.5 h-3.5 ml-1.5"></i>
@@ -128,7 +142,20 @@ const Hero = () => {
               <div className="flex flex-wrap gap-2.5">
                 <button 
                   className="bg-white text-purple-600 hover:bg-purple-50 shadow-lg px-3 py-2 rounded-lg text-sm font-medium transition flex items-center"
-                onClick={() => navigate('/user-dashboard')}
+                  onClick={() => {
+                    if (!isAuthenticated || !user) {
+                      navigate('/signin?next=' + encodeURIComponent('/upload-resume'))
+                    } else {
+                      const roles = user?.roles || []
+                      const hasEmployerRole = Array.isArray(roles) && roles.includes('employer')
+                      const hasUserRole = roles.includes('user') || (!hasEmployerRole && roles.length === 0)
+                      if (hasUserRole) {
+                        navigate('/upload-resume')
+                      } else {
+                        navigate('/employer-dashboard')
+                      }
+                    }
+                  }}
                 >
                   <i className="fa-solid fa-play w-3.5 h-3.5 mr-1.5"></i>
                   Upload Your Video Resume • Find Top Tech Roles

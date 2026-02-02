@@ -14,12 +14,67 @@ const Header = ({
 }) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, updateUser } = useAuth()
   const defaultLogout = useLogout('/signin')
   const [onboardingComplete, setOnboardingComplete] = useState(null)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const dropdownRef = React.useRef(null)
   
-  const isEmployer = Array.isArray(user?.roles) && user.roles.includes('employer')
+  const userRoles = user?.roles || []
+  const isEmployer = Array.isArray(userRoles) && userRoles.includes('employer')
+  const isUser = Array.isArray(userRoles) && userRoles.includes('user')
+  const hasBothRoles = isEmployer && isUser
 
+
+  console.log("=============userRoles", userRoles)
+  console.log("=============isEmployer", isEmployer)
+  console.log("=============isUser", isUser)
+  console.log("=============hasBothRoles", hasBothRoles)
+
+  // Fetch fresh user data if roles are missing
+  React.useEffect(() => {
+    if (isAuthenticated && user && (!user.roles || user.roles.length === 0)) {
+      api.getCurrentUser()
+        .then(userData => {
+          if (userData && userData.roles) {
+            // Update user with fresh roles from database
+            updateUser({ roles: userData.roles })
+          }
+        })
+        .catch(err => console.error('Failed to fetch user roles:', err))
+    }
+  }, [isAuthenticated, user, updateUser])
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('Header Debug:', {
+      user,
+      userRoles,
+      isEmployer,
+      isUser,
+      hasBothRoles,
+      isAuthenticated,
+      rolesType: typeof userRoles,
+      rolesIsArray: Array.isArray(userRoles)
+    })
+  }, [user, userRoles, isEmployer, isUser, hasBothRoles, isAuthenticated])
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false)
+      }
+    }
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isDropdownOpen])
   // Check onboarding completion (candidate only)
   useEffect(() => {
     const checkOnboarding = async () => {
@@ -62,7 +117,8 @@ const Header = ({
       defaultLogout()
     }
   }
-  
+  console.log("=============hasBothRoles", hasBothRoles)
+  console.log("=============user", user)
   return (
     <header id="header" className="bg-white shadow-sm border-b border-neutral-50 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
@@ -137,20 +193,64 @@ const Header = ({
 
             {/* User actions */}
             <div className="flex items-center gap-3 text-neutral-800">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg">
-                <img
-                  src={displayAvatar}
-                  alt={displayName}
-                  className="h-8 w-8 rounded-full object-cover"
-                />
-                <span className="text-sm font-semibold">{displayName}</span>
+              <div className="relative" ref={dropdownRef}>
+                <button 
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer"
+                >
+                  <img
+                    src={displayAvatar}
+                    alt={displayName}
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                  <span className="text-sm font-semibold">{displayName}</span>
+                  <i className={`fa-solid fa-chevron-down text-xs text-neutral-500 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
+                </button>
+                {isDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
+                    {hasBothRoles ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            setIsDropdownOpen(false)
+                            navigate('/employer-dashboard')
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center"
+                        >
+                          <i className="fa-solid fa-building mr-2 text-indigo-600"></i>
+                          Switch to Employer
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsDropdownOpen(false)
+                            navigate('/user-dashboard')
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center"
+                        >
+                          <i className="fa-solid fa-user mr-2 text-indigo-600"></i>
+                          Switch to Job Seeker
+                        </button>
+                        <div className="border-t border-slate-200 my-1"></div>
+                      </>
+                    ) : (
+                      <div className="px-4 py-2 text-xs text-neutral-500">
+                        {console.log('Header Dropdown - hasBothRoles:', hasBothRoles, 'isUser:', isUser, 'isEmployer:', isEmployer, 'userRoles:', userRoles)}
+                        Single role account
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setIsDropdownOpen(false)
+                        handleLogout()
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-red-50 hover:text-red-700 transition flex items-center"
+                    >
+                      <i className="fa-solid fa-right-from-bracket mr-2 text-red-600"></i>
+                      Logout
+                    </button>
+                  </div>
+                )}
               </div>
-              <button
-                className="bg-white border border-slate-200 text-neutral-900 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-slate-50 transition"
-                onClick={handleLogout}
-              >
-                Logout
-              </button>
             </div>
           </>
         ) : (
@@ -182,7 +282,7 @@ const Header = ({
                 <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-neutral-50 py-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
                   <span
                     className="block px-6 py-3 text-neutral-900 hover:bg-neutral-50 hover:text-primary transition cursor-pointer"
-                    onClick={() => navigate('/employer-signin')}
+                    onClick={() => navigate('/employer-signin?intent=employer')}
                   >
                     Post Jobs
                   </span>
@@ -201,7 +301,7 @@ const Header = ({
                 <>
                   <button 
                     className="bg-white border border-neutral-200 text-neutral-900 px-2.5 py-1.5 rounded-lg text-sm font-medium hover:bg-neutral-50 transition flex items-center shadow-sm"
-                    onClick={() => navigate('/employer-signin')}
+                    onClick={() => navigate('/employer-signin?next=' + encodeURIComponent('/employer-dashboard'))}
                   >
                     <div className="w-4 h-4 bg-neutral-900 rounded-full flex items-center justify-center mr-1.5">
                       <i className="fa-solid fa-plus text-white text-[10px]"></i>
@@ -210,7 +310,46 @@ const Header = ({
                   </button>
                   <button 
                     className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-2.5 py-1.5 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 transition flex items-center shadow-sm"
-                    onClick={() => navigate('/signin')}
+                    onClick={() => navigate('/signin?next=' + encodeURIComponent('/upload-resume'))}
+                  >
+                    <i className="fa-solid fa-video w-3.5 h-3.5 mr-1.5"></i>
+                    Upload Resume
+                  </button>
+                </>
+              )}
+              {isAuthenticated && (
+                <>
+                  <button 
+                    className="bg-white border border-neutral-200 text-neutral-900 px-2.5 py-1.5 rounded-lg text-sm font-medium hover:bg-neutral-50 transition flex items-center shadow-sm"
+                    onClick={() => {
+                      const roles = user?.roles || []
+                      const hasEmployerRole = Array.isArray(roles) && roles.includes('employer')
+                      if (hasEmployerRole) {
+                        navigate('/employer-dashboard')
+                      } else {
+                        // Role mismatch - redirect to user dashboard
+                        navigate('/user-dashboard')
+                      }
+                    }}
+                  >
+                    <div className="w-4 h-4 bg-neutral-900 rounded-full flex items-center justify-center mr-1.5">
+                      <i className="fa-solid fa-plus text-white text-[10px]"></i>
+                    </div>
+                    Post a Job
+                  </button>
+                  <button 
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-2.5 py-1.5 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 transition flex items-center shadow-sm"
+                    onClick={() => {
+                      const roles = user?.roles || []
+                      const hasEmployerRole = Array.isArray(roles) && roles.includes('employer')
+                      const hasUserRole = roles.includes('user') || (!hasEmployerRole && roles.length === 0)
+                      if (hasUserRole) {
+                        navigate('/upload-resume')
+                      } else {
+                        // Role mismatch - redirect to employer dashboard
+                        navigate('/employer-dashboard')
+                      }
+                    }}
                   >
                     <i className="fa-solid fa-video w-3.5 h-3.5 mr-1.5"></i>
                     Upload Resume
@@ -219,20 +358,64 @@ const Header = ({
               )}
               {isAuthenticated && (
                 <div className="flex items-center gap-3 text-neutral-800">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg">
-                    <img
-                      src={displayAvatar}
-                      alt={displayName}
-                      className="h-8 w-8 rounded-full object-cover"
-                    />
-                    <span className="text-sm font-semibold">{displayName}</span>
+                  <div className="relative" ref={dropdownRef}>
+                    <button 
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer"
+                    >
+                      <img
+                        src={displayAvatar}
+                        alt={displayName}
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                      <span className="text-sm font-semibold">{displayName}</span>
+                      <i className={`fa-solid fa-chevron-down text-xs text-neutral-500 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
+                    </button>
+                    {isDropdownOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
+                        {hasBothRoles ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                setIsDropdownOpen(false)
+                                navigate('/employer-dashboard')
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center"
+                            >
+                              <i className="fa-solid fa-building mr-2 text-indigo-600"></i>
+                              Switch to Employer
+                            </button>
+                            <button
+                              onClick={() => {
+                                setIsDropdownOpen(false)
+                                navigate('/user-dashboard')
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center"
+                            >
+                              <i className="fa-solid fa-user mr-2 text-indigo-600"></i>
+                              Switch to Job Seeker
+                            </button>
+                            <div className="border-t border-slate-200 my-1"></div>
+                          </>
+                        ) : (
+                          <div className="px-4 py-2 text-xs text-neutral-500">
+                            {console.log('Header Dropdown (public) - hasBothRoles:', hasBothRoles, 'isUser:', isUser, 'isEmployer:', isEmployer, 'userRoles:', userRoles)}
+                            Single role account
+                          </div>
+                        )}
+                        <button
+                          onClick={() => {
+                            setIsDropdownOpen(false)
+                            handleLogout()
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-red-50 hover:text-red-700 transition flex items-center"
+                        >
+                          <i className="fa-solid fa-right-from-bracket mr-2 text-red-600"></i>
+                          Logout
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <button
-                    className="bg-white border border-slate-200 text-neutral-900 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-slate-50 transition"
-                    onClick={handleLogout}
-                  >
-                    Logout
-                  </button>
                 </div>
               )}
               <button className="lg:hidden text-neutral-900">

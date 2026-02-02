@@ -1,8 +1,10 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 const Footer = () => {
   const navigate = useNavigate()
+  const { isAuthenticated, user } = useAuth()
 
   // Footer link styles - centralized to reduce redundancy
   const footerLinkClass = "text-neutral-600 hover:text-indigo-600 transition-colors text-sm cursor-pointer flex items-center group"
@@ -101,7 +103,19 @@ const Footer = () => {
           <div>
             <h4 className="font-semibold text-neutral-900 mb-4 text-sm">For Employers</h4>
             <ul className="space-y-2.5">
-              <li>{renderFooterLink('Post Jobs', () => navigate('/employer-signin'))}</li>
+              <li>{renderFooterLink('Post Jobs', () => {
+                if (!isAuthenticated || !user) {
+                  navigate('/employer-signin?next=' + encodeURIComponent('/employer-dashboard'))
+                } else {
+                  const roles = user?.roles || []
+                  const hasEmployerRole = Array.isArray(roles) && roles.includes('employer')
+                  if (hasEmployerRole) {
+                    navigate('/employer-dashboard')
+                  } else {
+                    navigate('/user-dashboard')
+                  }
+                }
+              })}</li>
               <li>{renderFooterLink('Talent Pool')}</li>
               <li>{renderFooterLink('Assessment Tools')}</li>
               <li>{renderFooterLink('Enterprise')}</li>

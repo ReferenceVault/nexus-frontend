@@ -11,12 +11,23 @@ const GoogleCallback = () => {
   const { login } = useAuth()
   const processedRef = useRef(false)
 
-  const checkOnboardingAndRedirect = async (isEmployer = false) => {
+  const checkOnboardingAndRedirect = async (intent = 'user', userRoles = []) => {
     try {
-      if (isEmployer) {
+      // Use intent to determine flow, not roles
+      if (intent === 'employer') {
+        // Validate user has employer role
+        const hasEmployerRole = Array.isArray(userRoles) && userRoles.includes('employer')
+        if (!hasEmployerRole) {
+          // User doesn't have employer role, redirect to signin with error
+          navigate('/employer-signin?intent=employer&error=missing_role', { replace: true })
+          return
+        }
+        
+        // Check employer onboarding
         try {
           const profile = await api.getEmployerProfile()
           if (profile) {
+            sessionStorage.setItem('lastDashboardType', 'employer')
             navigate('/employer-dashboard', { replace: true })
             return
           }
@@ -27,6 +38,7 @@ const GoogleCallback = () => {
         return
       }
 
+      // Default to user flow (intent === 'user' or not specified)
       const userProfile = await api.getCurrentUser()
       
       // Check if onboarding is complete
@@ -62,6 +74,7 @@ const GoogleCallback = () => {
 
       // Redirect based on onboarding status
       if (onboardingComplete) {
+        sessionStorage.setItem('lastDashboardType', 'user')
         navigate('/user-dashboard', { replace: true })
       } else {
         navigate('/onboarding', { replace: true })
@@ -91,6 +104,9 @@ const GoogleCallback = () => {
     
     const processCallback = async () => {
       try {
+        // Determine intent from state parameter (state can be 'employer' or 'user')
+        const intent = state === 'employer' ? 'employer' : 'user'
+        
         // Exchange code for tokens and user data
         const isEmployerState = state === 'employer'
         const callbackPath = isEmployerState
@@ -110,12 +126,13 @@ const GoogleCallback = () => {
           refreshToken: result.tokens.refreshToken,
         })
 
-        const isEmployerUser = Array.isArray(result.user?.roles) && result.user.roles.includes('employer')
-        // Check onboarding and redirect
-        await checkOnboardingAndRedirect(isEmployerState || isEmployerUser)
+        // Use intent for redirection, not roles
+        await checkOnboardingAndRedirect(intent, result.user?.roles || [])
       } catch (error) {
         console.error('Error processing Google callback:', error)
-        navigate(state === 'employer' ? '/employer-signin' : '/signin', { replace: true })
+        // Preserve intent when redirecting to signin
+        const intent = state === 'employer' ? 'employer' : 'user'
+        navigate(state === 'employer' ? `/employer-signin?intent=${intent}` : `/signin?intent=${intent}`, { replace: true })
       }
     }
 

@@ -28,10 +28,14 @@ export const api = {
     return handleApiError(response)
   },
 
-  async login(email, password) {
+  async login(email, password, expectedRole = null) {
+    const body = { email, password }
+    if (expectedRole) {
+      body.expectedRole = expectedRole
+    }
     const response = await unauthenticatedFetch('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(body),
     })
     return handleApiError(response)
   },

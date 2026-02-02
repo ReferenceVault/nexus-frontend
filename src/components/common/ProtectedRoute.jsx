@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { isTokenExpired, getValidAccessToken } from '../../utils/apiClient'
 import { checkOnboardingComplete } from '../../utils/onboarding'
 import { api } from '../../utils/api'
+import RoleAccessDenied from './RoleAccessDenied'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading, accessToken, refreshToken, user } = useAuth()
@@ -14,9 +15,15 @@ const ProtectedRoute = ({ children }) => {
   const [employerProfileComplete, setEmployerProfileComplete] = useState(null)
   const location = useLocation()
   
-  const isEmployer = Array.isArray(user?.roles) && user.roles.includes('employer')
+  const userRoles = user?.roles || []
+  const isEmployer = Array.isArray(userRoles) && userRoles.includes('employer')
+  const isUser = Array.isArray(userRoles) && userRoles.includes('user')
   const isEmployerRoute = location.pathname.startsWith('/employer')
   const isEmployerOnboardingRoute = location.pathname.startsWith('/employer-onboarding')
+  
+  // Check role access for employer routes
+  const requiresEmployerRole = isEmployerRoute && !isEmployerOnboardingRoute
+  const hasRequiredRole = requiresEmployerRole ? isEmployer : true
 
   // Routes that don't require onboarding completion
   const onboardingRoutes = ['/onboarding', '/assessments', '/analysis']
@@ -56,7 +63,10 @@ const ProtectedRoute = ({ children }) => {
   // Check onboarding completion for non-onboarding routes (candidates)
   useEffect(() => {
     const checkOnboarding = async () => {
-      if (isEmployer) {
+      // Skip if user is employer AND on employer route (employers have separate onboarding check)
+      // But if user has both roles and is on user route, still check user onboarding
+      if (isEmployer && isEmployerRoute) {
+        console.log('🛡️ ProtectedRoute: Skipping user onboarding check - user is employer on employer route')
         setIsCheckingOnboarding(false)
         setOnboardingComplete(null)
         return
@@ -64,19 +74,38 @@ const ProtectedRoute = ({ children }) => {
 
       // Skip check if on onboarding route
       if (isOnboardingRoute) {
+        console.log('🛡️ ProtectedRoute: On onboarding route - allowing access')
         setIsCheckingOnboarding(false)
         setOnboardingComplete(true) // Allow access to onboarding route
         return
       }
 
-      // Skip if not authenticated or still validating token
-      if (!isAuthenticated || isValidating) {
+      // Skip if not authenticated
+      if (!isAuthenticated) {
+        console.log('🛡️ ProtectedRoute: Not authenticated - clearing onboarding state')
         setIsCheckingOnboarding(false)
+        setOnboardingComplete(null)
+        return
+      }
+
+      // Skip if still validating token (wait for validation to complete)
+      if (isValidating) {
+        console.log('🛡️ ProtectedRoute: Still validating token - waiting...')
+        setIsCheckingOnboarding(false)
+        // Don't clear onboardingComplete here - preserve existing state while validating
+        return
+      }
+
+      // Don't re-check if we already have a valid result (true or false)
+      // Only re-check if onboardingComplete is null
+      if (onboardingComplete !== null && !isCheckingOnboarding) {
+        console.log('🛡️ ProtectedRoute: Onboarding already checked, result:', onboardingComplete)
         return
       }
 
       // Always check onboarding for authenticated users on protected routes
-      console.log('🛡️ ProtectedRoute: Checking onboarding status for', location.pathname)
+      // This runs when isValidating becomes false and isAuthenticated is true
+      console.log('🛡️ ProtectedRoute: Checking onboarding status for', location.pathname, 'isEmployer:', isEmployer, 'isEmployerRoute:', isEmployerRoute)
       setIsCheckingOnboarding(true)
       setOnboardingComplete(null) // Reset to null while checking
       try {
@@ -93,14 +122,16 @@ const ProtectedRoute = ({ children }) => {
       }
     }
 
-    if (!isValidating && isAuthenticated) {
+    // Run check when authenticated and validation is complete
+    if (isAuthenticated && !isValidating) {
       checkOnboarding()
     } else if (!isAuthenticated) {
       // Not authenticated, clear onboarding status
       setOnboardingComplete(null)
       setIsCheckingOnboarding(false)
     }
-  }, [isAuthenticated, isValidating, isOnboardingRoute, location.pathname, isEmployer])
+    // If isValidating is true, wait - don't clear state yet
+  }, [isAuthenticated, isValidating, isOnboardingRoute, location.pathname, isEmployer, isEmployerRoute])
 
   // Check employer onboarding for employer routes
   useEffect(() => {
@@ -162,10 +193,21 @@ const ProtectedRoute = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to={isEmployerRoute ? '/employer-signin' : '/signin'} replace />
+    // Preserve intent from current location if present
+    const searchParams = new URLSearchParams(location.search)
+    const intent = searchParams.get('intent')
+    const redirectPath = isEmployerRoute 
+      ? `/employer-signin${intent ? `?intent=${intent}` : '?intent=employer'}` 
+      : `/signin${intent ? `?intent=${intent}` : '?intent=user'}`
+    return <Navigate to={redirectPath} replace />
   }
 
   if (isEmployerRoute) {
+    // Check if user has required role
+    if (requiresEmployerRole && !hasRequiredRole) {
+      return <RoleAccessDenied requiredRole="employer" currentPath={location.pathname} />
+    }
+
     if (isEmployerOnboardingRoute) {
       return children
     }
@@ -175,6 +217,13 @@ const ProtectedRoute = ({ children }) => {
     }
 
     return children
+  }
+  
+  // Check role access for user routes (non-employer routes that require user role)
+  const userOnlyRoutes = ['/upload-resume', '/upload-video', '/user-dashboard', '/job-matches', '/job-details']
+  const isUserOnlyRoute = userOnlyRoutes.some(route => location.pathname.startsWith(route))
+  if (isUserOnlyRoute && !isUser && isAuthenticated) {
+    return <RoleAccessDenied requiredRole="user" currentPath={location.pathname} />
   }
 
   // For onboarding, assessment, and analysis routes, always allow access
