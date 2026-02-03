@@ -11,7 +11,7 @@ import { useLogout } from '../hooks/useLogout'
 const UserDashboard = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, isAuthenticated, accessToken } = useAuth()
+  const { user, isAuthenticated, accessToken, updateUser } = useAuth()
   const handleLogout = useLogout('/signin')
   const profileFormRef = useRef(null)
   
@@ -107,6 +107,15 @@ const UserDashboard = () => {
     }
   }, [resumes, optimizerResumeId])
 
+  // Helper function to change view and update URL
+  const changeView = (view) => {
+    setActiveView(view)
+    const params = new URLSearchParams(location.search)
+    params.set('tab', view)
+    navigate(`/user-dashboard?${params.toString()}`, { replace: true })
+  }
+
+  // Sync activeView with URL query parameter
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const tab = params.get('tab')
@@ -114,7 +123,7 @@ const UserDashboard = () => {
     if (tab && allowedTabs.includes(tab) && tab !== activeView) {
       setActiveView(tab)
     }
-  }, [location.search, activeView])
+  }, [location.search])
 
   // Fetch profile when profile view is active
   useEffect(() => {
@@ -223,7 +232,7 @@ const UserDashboard = () => {
         userName={userName}
         userEmail={userEmail}
         userInitial={userInitial}
-        onProfile={() => setActiveView('profile')}
+        onProfile={() => changeView('profile')}
         onLogout={handleLogout}
         breadcrumbs={[
           { label: 'Home', href: '/' },
@@ -244,27 +253,27 @@ const UserDashboard = () => {
               id: 'overview',
               label: 'Overview',
               icon: 'fa-solid fa-grid-2',
-              onClick: () => setActiveView('overview')
+              onClick: () => changeView('overview')
             },
             {
               id: 'resumes',
               label: 'My Resumes',
               icon: 'fa-solid fa-file-pdf',
               badge: resumes.length > 0 ? resumes.length : undefined,
-              onClick: () => setActiveView('resumes')
+              onClick: () => changeView('resumes')
             },
             {
               id: 'resume-optimizer',
               label: 'Resume Optimizer',
               icon: 'fa-solid fa-wand-magic-sparkles',
-              onClick: () => setActiveView('resume-optimizer')
+              onClick: () => changeView('resume-optimizer')
             },
             {
               id: 'videos',
               label: 'Video Introductions',
               icon: 'fa-solid fa-video',
               badge: videos.length > 0 ? videos.length : undefined,
-              onClick: () => setActiveView('videos')
+              onClick: () => changeView('videos')
             },
             {
               id: 'assessments',
@@ -437,7 +446,7 @@ const UserDashboard = () => {
 
                       <div className="flex items-center justify-end gap-2 pt-4 border-t border-neutral-200">
                     <button
-                          onClick={() => setActiveView('overview')}
+                          onClick={() => changeView('overview')}
                       disabled={isSaving}
                           className="px-3 py-1.5 rounded-lg border border-neutral-300 text-neutral-700 text-xs font-semibold hover:bg-neutral-50 transition disabled:opacity-50"
                     >
@@ -1053,7 +1062,7 @@ const UserDashboard = () => {
                       { icon: 'fa-solid fa-upload', title: 'Upload Resume', description: 'Add or update your resume', onClick: () => navigate('/upload-resume') },
                       { icon: 'fa-solid fa-video', title: 'Upload Video', description: 'Record your introduction video', onClick: () => navigate('/upload-video') },
                       { icon: 'fa-solid fa-briefcase', title: 'Browse Jobs', description: 'Discover job opportunities', onClick: () => navigate('/job-matches') },
-                      { icon: 'fa-solid fa-user-pen', title: 'Edit Profile', description: 'Update your profile information', onClick: () => setActiveView('profile') }
+                      { icon: 'fa-solid fa-user-pen', title: 'Edit Profile', description: 'Update your profile information', onClick: () => changeView('profile') }
                     ].map((action, index) => (
                       <button 
                         key={index}

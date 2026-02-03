@@ -14,7 +14,7 @@ const Header = ({
 }) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, user, updateUser } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const defaultLogout = useLogout('/signin')
   const [onboardingComplete, setOnboardingComplete] = useState(null)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -22,42 +22,6 @@ const Header = ({
   
   const userRoles = user?.roles || []
   const isEmployer = Array.isArray(userRoles) && userRoles.includes('employer')
-  const isUser = Array.isArray(userRoles) && userRoles.includes('user')
-  const hasBothRoles = isEmployer && isUser
-
-
-  console.log("=============userRoles", userRoles)
-  console.log("=============isEmployer", isEmployer)
-  console.log("=============isUser", isUser)
-  console.log("=============hasBothRoles", hasBothRoles)
-
-  // Fetch fresh user data if roles are missing
-  React.useEffect(() => {
-    if (isAuthenticated && user && (!user.roles || user.roles.length === 0)) {
-      api.getCurrentUser()
-        .then(userData => {
-          if (userData && userData.roles) {
-            // Update user with fresh roles from database
-            updateUser({ roles: userData.roles })
-          }
-        })
-        .catch(err => console.error('Failed to fetch user roles:', err))
-    }
-  }, [isAuthenticated, user, updateUser])
-
-  // Debug logging
-  React.useEffect(() => {
-    console.log('Header Debug:', {
-      user,
-      userRoles,
-      isEmployer,
-      isUser,
-      hasBothRoles,
-      isAuthenticated,
-      rolesType: typeof userRoles,
-      rolesIsArray: Array.isArray(userRoles)
-    })
-  }, [user, userRoles, isEmployer, isUser, hasBothRoles, isAuthenticated])
 
   // Close dropdown when clicking outside
   React.useEffect(() => {
@@ -117,8 +81,7 @@ const Header = ({
       defaultLogout()
     }
   }
-  console.log("=============hasBothRoles", hasBothRoles)
-  console.log("=============user", user)
+  
   return (
     <header id="header" className="bg-white shadow-sm border-b border-neutral-50 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
@@ -208,36 +171,6 @@ const Header = ({
                 </button>
                 {isDropdownOpen && (
                   <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
-                    {hasBothRoles ? (
-                      <>
-                        <button
-                          onClick={() => {
-                            setIsDropdownOpen(false)
-                            navigate('/employer-dashboard')
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center"
-                        >
-                          <i className="fa-solid fa-building mr-2 text-indigo-600"></i>
-                          Switch to Employer
-                        </button>
-                        <button
-                          onClick={() => {
-                            setIsDropdownOpen(false)
-                            navigate('/user-dashboard')
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center"
-                        >
-                          <i className="fa-solid fa-user mr-2 text-indigo-600"></i>
-                          Switch to Job Seeker
-                        </button>
-                        <div className="border-t border-slate-200 my-1"></div>
-                      </>
-                    ) : (
-                      <div className="px-4 py-2 text-xs text-neutral-500">
-                        {console.log('Header Dropdown - hasBothRoles:', hasBothRoles, 'isUser:', isUser, 'isEmployer:', isEmployer, 'userRoles:', userRoles)}
-                        Single role account
-                      </div>
-                    )}
                     <button
                       onClick={() => {
                         setIsDropdownOpen(false)
@@ -373,36 +306,6 @@ const Header = ({
                     </button>
                     {isDropdownOpen && (
                       <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
-                        {hasBothRoles ? (
-                          <>
-                            <button
-                              onClick={() => {
-                                setIsDropdownOpen(false)
-                                navigate('/employer-dashboard')
-                              }}
-                              className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center"
-                            >
-                              <i className="fa-solid fa-building mr-2 text-indigo-600"></i>
-                              Switch to Employer
-                            </button>
-                            <button
-                              onClick={() => {
-                                setIsDropdownOpen(false)
-                                navigate('/user-dashboard')
-                              }}
-                              className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center"
-                            >
-                              <i className="fa-solid fa-user mr-2 text-indigo-600"></i>
-                              Switch to Job Seeker
-                            </button>
-                            <div className="border-t border-slate-200 my-1"></div>
-                          </>
-                        ) : (
-                          <div className="px-4 py-2 text-xs text-neutral-500">
-                            {console.log('Header Dropdown (public) - hasBothRoles:', hasBothRoles, 'isUser:', isUser, 'isEmployer:', isEmployer, 'userRoles:', userRoles)}
-                            Single role account
-                          </div>
-                        )}
                         <button
                           onClick={() => {
                             setIsDropdownOpen(false)

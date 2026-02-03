@@ -9,12 +9,15 @@ import { useLogout } from '../hooks/useLogout'
 import { api } from '../utils/api'
 import ErrorMessage from '../components/common/ErrorMessage'
 import LoadingSpinner from '../components/common/LoadingSpinner'
+import { useAppDispatch } from '../store/hooks'
+import { updateUser } from '../store/slices/authSlice'
 
 const Onboarding = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { signupData, user, accessToken, isAuthenticated } = useAuth()
   const handleLogout = useLogout('/signin')
+  const dispatch = useAppDispatch()
   const [currentStep, setCurrentStep] = useState(1)
   const [errors, setErrors] = useState({})
   const [isSaving, setIsSaving] = useState(false)
@@ -562,14 +565,14 @@ const Onboarding = () => {
       }
 
       const updatedUser = await api.updateProfile(profileData)
-      
+      console.log("=============updatedUser", updatedUser)
       // Update Redux state
-      updateUser({
+      dispatch(updateUser({
         firstName: updatedUser.firstName,
         lastName: updatedUser.lastName,
         phone: updatedUser.phone,
-      })
-
+      }))
+      console.log("=============updatedUser2222", updatedUser)
       return true
     } catch (error) {
       const errorMessage = error.message || 'Failed to save profile information'

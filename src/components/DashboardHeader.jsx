@@ -1,4 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
+import { api } from '../utils/api'
 
 const DashboardHeader = ({
   userName,
@@ -10,8 +13,33 @@ const DashboardHeader = ({
   title,
   subtitle
 }) => {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { user, updateUser } = useAuth()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const dropdownRef = useRef(null)
+
+  const userRoles = user?.roles || []
+  const isEmployer = Array.isArray(userRoles) && userRoles.includes('employer')
+  const isUser = Array.isArray(userRoles) && userRoles.includes('user')
+  const hasBothRoles = isEmployer && isUser
+
+  // Determine current role context based on route
+  const isOnEmployerDashboard = location.pathname.includes('/employer-dashboard') || location.pathname.includes('/employer')
+  const isOnUserDashboard = location.pathname.includes('/user-dashboard') || location.pathname.includes('/job-matches') || location.pathname.includes('/assessments') || location.pathname.includes('/upload-resume') || location.pathname.includes('/upload-video') || location.pathname.includes('/onboarding')
+
+  // Fetch fresh user data if roles are missing
+  useEffect(() => {
+    if (user && (!user.roles || user.roles.length === 0)) {
+      api.getCurrentUser()
+        .then(userData => {
+          if (userData && userData.roles) {
+            updateUser({ roles: userData.roles })
+          }
+        })
+        .catch(err => console.error('Failed to fetch user roles:', err))
+    }
+  }, [user, updateUser])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -123,6 +151,37 @@ const DashboardHeader = ({
 
                     {/* Menu Items */}
                     <div className="py-1">
+                      {hasBothRoles && (
+                        <>
+                          {isOnEmployerDashboard && isUser && (
+                            <button
+                              onClick={() => {
+                                setIsDropdownOpen(false)
+                                navigate('/user-dashboard')
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors flex items-center gap-3"
+                            >
+                              <i className="fa-solid fa-user text-indigo-600 w-4"></i>
+                              <span>Switch to Job Seeker</span>
+                            </button>
+                          )}
+                          {isOnUserDashboard && isEmployer && (
+                            <button
+                              onClick={() => {
+                                setIsDropdownOpen(false)
+                                navigate('/employer-dashboard')
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors flex items-center gap-3"
+                            >
+                              <i className="fa-solid fa-building text-indigo-600 w-4"></i>
+                              <span>Switch to Employer</span>
+                            </button>
+                          )}
+                          {(isOnEmployerDashboard && isUser) || (isOnUserDashboard && isEmployer) ? (
+                            <div className="border-t border-neutral-200 my-1"></div>
+                          ) : null}
+                        </>
+                      )}
                       <button
                         onClick={() => {
                           onProfile()
