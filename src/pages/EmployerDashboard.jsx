@@ -42,6 +42,7 @@ const EmployerDashboard = () => {
   const [error, setError] = useState(null)
   const [detailMatch, setDetailMatch] = useState(null)
   const [toast, setToast] = useState(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const userName = user?.firstName && user?.lastName 
     ? `${user.firstName} ${user.lastName}` 
@@ -360,8 +361,8 @@ const EmployerDashboard = () => {
       <div className="flex flex-1">
         <DashboardSidebar
           title="Employer"
-          collapsed={false}
-          onToggleCollapse={() => {}}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
           activeView={activeView}
           menuItems={[
             { id: 'overview', label: 'Overview', icon: 'fa-solid fa-chart-line', onClick: () => handleMenuClick('overview') },

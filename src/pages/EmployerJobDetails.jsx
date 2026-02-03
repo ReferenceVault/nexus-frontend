@@ -5,6 +5,7 @@ import DashboardSidebar from '../components/DashboardSidebar'
 import { api } from '../utils/api'
 import { useAuth } from '../hooks/useAuth'
 import { useLogout } from '../hooks/useLogout'
+import { wsClient } from '../utils/websocket'
 
 const EmployerJobDetails = () => {
   const navigate = useNavigate()
@@ -75,10 +76,101 @@ const EmployerJobDetails = () => {
   }, [candidateIdParam, matches])
 
   useEffect(() => {
-    if (!toast) return
-    const timer = setTimeout(() => setToast(null), 2500)
-    return () => clearTimeout(timer)
+    if (!toast) {
+      console.log('Toast is null/undefined')
+      return
+    }
+    console.log('Toast set:', toast, 'Type:', typeof toast, 'Has message:', !!toast.message)
+    const timer = setTimeout(() => {
+      console.log('Clearing toast after timeout')
+      setToast(null)
+    }, 5000) // Increased to 5 seconds to ensure visibility
+    return () => {
+      console.log('Cleaning up toast timer')
+      clearTimeout(timer)
+    }
   }, [toast])
+
+  // Setup websocket listeners for job matching events
+  useEffect(() => {
+    if (!jobId) return
+
+    // Connect websocket
+    wsClient.connect()
+
+    // Listen for matching started event
+    const unsubscribeStarted = wsClient.on('job:matching:started', (data) => {
+      console.log('WebSocket event received - job:matching:started', { data, jobId, match: data.jobId === jobId, dataType: typeof data.jobId, jobIdType: typeof jobId })
+      // Compare as strings to handle any type mismatches
+      if (String(data.jobId) === String(jobId)) {
+        console.log('Setting toast for matching started')
+        // Use setTimeout to ensure state update happens after current render cycle
+        setTimeout(() => {
+          setToast({
+            type: 'info',
+            message: 'AI matching has started',
+          })
+        }, 0)
+      } else {
+        console.log('JobId mismatch - not showing toast', { received: data.jobId, expected: jobId })
+      }
+    })
+
+    // Listen for matching completed event
+    const unsubscribeCompleted = wsClient.on('job:matching:completed', async (data) => {
+      console.log('WebSocket event received - job:matching:completed', { data, jobId, match: String(data.jobId) === String(jobId) })
+      // Compare as strings to handle any type mismatches
+      if (String(data.jobId) === String(jobId)) {
+        console.log('Setting toast for matching completed')
+        setIsRunningMatch(false)
+        // Clear any existing toast first, then set new one
+        setToast(null)
+        // Use setTimeout to ensure state update happens after current render cycle
+        setTimeout(() => {
+          console.log('Setting completed toast after delay')
+          setToast({
+            type: 'success',
+            message: `Your results are ready! Found ${data.matchCount || 0} matches.`,
+          })
+        }, 50) // Small delay to ensure previous toast (if any) is cleared
+        // Refresh matches
+        try {
+          const matchData = await api.getJobMatches(jobId)
+          const matchesArray = Array.isArray(matchData) ? matchData : (matchData?.matches || [])
+          setMatches(matchesArray)
+        } catch (err) {
+          console.error('Failed to refresh matches:', err)
+        }
+      } else {
+        console.log('JobId mismatch - not showing toast', { received: data.jobId, expected: jobId })
+      }
+    })
+
+    // Listen for matching failed event
+    const unsubscribeFailed = wsClient.on('job:matching:failed', (data) => {
+      console.log('WebSocket event received - job:matching:failed', { data, jobId, match: String(data.jobId) === String(jobId) })
+      // Compare as strings to handle any type mismatches
+      if (String(data.jobId) === String(jobId)) {
+        console.log('Setting toast for matching failed')
+        setIsRunningMatch(false)
+        // Use setTimeout to ensure state update happens after current render cycle
+        setTimeout(() => {
+          setToast({
+            type: 'error',
+            message: data.message || 'AI matching failed',
+          })
+        }, 0)
+      } else {
+        console.log('JobId mismatch - not showing toast', { received: data.jobId, expected: jobId })
+      }
+    })
+
+    return () => {
+      unsubscribeStarted()
+      unsubscribeCompleted()
+      unsubscribeFailed()
+    }
+  }, [jobId])
 
   const handlePublish = async () => {
     if (!job) return
@@ -110,20 +202,11 @@ const EmployerJobDetails = () => {
     setError(null)
     try {
       await api.runJobMatching(job.id)
-      setToast({
-        type: 'success',
-        message: 'AI matching started. Refresh in a moment for new results.',
-      })
-      setTimeout(async () => {
-        const matchData = await api.getJobMatches(job.id)
-        // Handle both old format (array) and new format ({ matches: [] })
-        const matchesArray = Array.isArray(matchData) ? matchData : (matchData?.matches || [])
-        setMatches(matchesArray)
-      }, 1500)
+      // Don't set loading to false here - wait for websocket event
+      // The websocket will notify when matching is complete
     } catch (err) {
       setError(err.message || 'Failed to run AI matching.')
-    } finally {
-      setIsRunningMatch(false)
+      setIsRunningMatch(false) // Only stop loading on error
     }
   }
 
@@ -341,11 +424,6 @@ const EmployerJobDetails = () => {
             {error && (
               <div className="mb-4 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                 {error}
-              </div>
-            )}
-            {toast && (
-              <div className="mb-4 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                {toast.message}
               </div>
             )}
 
@@ -575,8 +653,11 @@ const EmployerJobDetails = () => {
                           <button
                             onClick={handleRunMatching}
                             disabled={isRunningMatch}
-                            className="px-3 py-2 text-xs bg-indigo-50 text-primary rounded-lg hover:bg-indigo-100 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="px-3 py-2 text-xs bg-indigo-50 text-primary rounded-lg hover:bg-indigo-100 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                           >
+                            {isRunningMatch && (
+                              <i className="fa-solid fa-spinner fa-spin text-xs"></i>
+                            )}
                             {isRunningMatch ? 'Running...' : 'Run AI Matching'}
                           </button>
                           <button
@@ -590,6 +671,24 @@ const EmployerJobDetails = () => {
                           </button>
                         </div>
                       </div>
+                      {(() => {
+                        const shouldShowToast = !!toast
+                        if (!shouldShowToast) return null
+                        return (
+                          <div 
+                            key={`toast-${toast.type}-${toast.message}-${Date.now()}`}
+                            className={`mt-3 text-xs rounded-lg px-3 py-2 border ${
+                              toast.type === 'error' 
+                                ? 'text-red-700 bg-red-50 border-red-200'
+                                : toast.type === 'info'
+                                ? 'text-blue-700 bg-blue-50 border-blue-200'
+                                : 'text-green-700 bg-green-50 border-green-200'
+                            }`}
+                          >
+                            {toast.message || 'No message'}
+                          </div>
+                        )
+                      })()}
                       {matches.length ? (
                         <div className="space-y-3">
                           {matches.map((match) => (
